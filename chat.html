@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Чат – Kushti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ea580c;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideOut {
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        .sending-indicator {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-[100dvh] flex flex-col overflow-hidden transition-colors duration-300">
+    <div id="offline-banner" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50">
+        <i class="fas fa-wifi-slash mr-2"></i>Интернет байланысы жоқ
+    </div>
+
+    <nav class="p-4 border-b flex justify-between shrink-0">
+        <button onclick="location.href='index.html'" class="text-orange-500"><i class="fas fa-chevron-left text-xl"></i></button>
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center font-black text-white text-sm shadow-lg">
+                K
+            </div>
+            <h1 class="font-black italic text-white uppercase">Global Chat</h1>
+        </div>
+        <button onclick="toggleTheme()"><i id="theme-icon" class="fas fa-moon text-white"></i></button>
+    </nav>
+
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 pb-24"></div>
+
+    <div id="reply-box" class="hidden border-t border-orange-500 p-2 flex justify-between items-center">
+        <div class="border-l-2 border-orange-500 pl-3 overflow-hidden">
+            <p id="reply-user" class="text-[10px] font-bold text-orange-500"></p>
+            <p id="reply-text" class="text-[10px] opacity-60 truncate text-white"></p>
+        </div>
+        <button onclick="cancelReply()"><i class="fas fa-times opacity-60 text-white"></i></button>
+    </div>
+
+    <div class="p-3 border-t shrink-0">
+        <div class="flex items-center gap-2">
+            <button id="voice-btn" class="w-12 h-12 rounded-2xl transition">
+                <i class="fas fa-microphone text-xl text-white"></i>
+            </button>
+            <input type="text" id="msg-input" placeholder="Жазу..." maxlength="1000" class="flex-1 p-3 rounded-2xl outline-none text-sm border">
+            <button onclick="sendMsg()" id="send-btn" class="w-12 h-12 rounded-2xl bg-orange-600 flex items-center justify-center text-white">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        <div class="text-xs text-gray-500 mt-1 text-right" id="char-counter">0/1000</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3Tf0kqjLPinrVrcxzB_0Niy3RIL9FJ5Q",
+            authDomain: "kushti-anime.firebaseapp.com",
+            projectId: "kushti-anime",
+            storageBucket: "kushti-anime.firebasestorage.app",
+            messagingSenderId: "539636802828",
+            appId: "1:539636802828:web:9d6d7877d88ac452d61529",
+            measurementId: "G-7ZTFL5TVCS"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let replyData = null;
+        let currentUserRole = 'user';
+        let messagesCache = new Map();
+        let isSending = false;
+        let lastMessageTime = 0;
+        const MESSAGE_COOLDOWN = 6000; // 6 секунд
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.background = type === 'error' ? '#dc2626' : '#ea580c';
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        window.addEventListener('online', () => {
+            document.getElementById('offline-banner').classList.add('hidden');
+            showToast('Интернет қосылды', 'success');
+        });
+        window.addEventListener('offline', () => {
+            document.getElementById('offline-banner').classList.remove('hidden');
+        });
+
+        // Обновление счетчика символов
+        document.getElementById('msg-input').addEventListener('input', (e) => {
+            const counter = document.getElementById('char-counter');
+            const length = e.target.value.length;
+            counter.textContent = `${length}/1000`;
+            counter.style.color = length > 900 ? '#dc2626' : '';
+        });
+
+        function applyTheme() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            const body = document.body;
+            const nav = document.querySelector('nav');
+            const replyBox = document.getElementById('reply-box');
+            const input = document.getElementById('msg-input');
+            const vBtn = document.getElementById('voice-btn');
+            const footer = document.querySelector('.p-3.border-t');
+            
+            if (theme === 'dark') {
+                body.className = 'bg-[#0b0f1a] text-white h-[100dvh] flex flex-col overflow-hidden transition-colors duration-300';
+                nav.classList.add('bg-slate-900', 'border-slate-800');
+                nav.classList.remove('bg-white', 'border-gray-200');
+                footer.classList.add('bg-slate-900', 'border-slate-800');
+                footer.classList.remove('bg-white', 'border-gray-200');
+                replyBox.classList.add('bg-slate-900');
+                replyBox.classList.remove('bg-white');
+                input.classList.add('bg-slate-800', 'border-slate-700', 'text-white');
+                input.classList.remove('bg-gray-100', 'border-gray-300', 'text-gray-900');
+                vBtn.classList.add('bg-slate-800', 'text-slate-400');
+                vBtn.classList.remove('bg-gray-200', 'text-gray-600');
+                document.getElementById('theme-icon').classList.replace('fa-sun', 'fa-moon');
+            } else {
+                body.className = 'bg-gray-50 text-gray-900 h-[100dvh] flex flex-col overflow-hidden transition-colors duration-300';
+                nav.classList.add('bg-white', 'border-gray-200');
+                nav.classList.remove('bg-slate-900', 'border-slate-800');
+                footer.classList.add('bg-white', 'border-gray-200');
+                footer.classList.remove('bg-slate-900', 'border-slate-800');
+                replyBox.classList.add('bg-white');
+                replyBox.classList.remove('bg-slate-900');
+                input.classList.add('bg-gray-100', 'border-gray-300', 'text-gray-900');
+                input.classList.remove('bg-slate-800', 'border-slate-700', 'text-white');
+                vBtn.classList.add('bg-gray-200', 'text-gray-600');
+                vBtn.classList.remove('bg-slate-800', 'text-slate-400');
+                document.getElementById('theme-icon').classList.replace('fa-moon', 'fa-sun');
+            }
+        }
+
+        window.toggleTheme = () => {
+            const current = localStorage.getItem('theme') || 'dark';
+            localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+            applyTheme();
+        };
+
+        applyTheme();
+
+        auth.onAuthStateChanged(async u => {
+            if (!u) {
+                showToast('Чатқа кіру үшін тіркелу керек!', 'error');
+                setTimeout(() => location.href = 'index.html', 2000);
+                return;
+            }
+
+            const userDoc = await getDoc(doc(db, "users", u.uid));
+            if (userDoc.exists()) {
+                currentUserRole = userDoc.data().role || 'user';
+            }
+
+            loadMessages();
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Жаңа';
+            if (diff < 3600000) return Math.floor(diff / 60000) + ' мин';
+            if (date.toDateString() === now.toDateString()) {
+                return date.toLocaleTimeString('kk-KZ', { hour: '2-digit', minute: '2-digit' });
+            }
+            return date.toLocaleDateString('kk-KZ', { day: 'numeric', month: 'short' });
+        }
+
+        function loadMessages() {
+            const q = query(collection(db, "global_chat"), orderBy("time", "asc"));
+            onSnapshot(q, (s) => {
+                const container = document.getElementById('chat-messages');
+                const scrollAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+
+                s.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        const msgId = change.doc.id;
+
+                        if (messagesCache.has(msgId)) return;
+                        messagesCache.set(msgId, msg);
+
+                        const isMine = msg.uid === auth.currentUser?.uid;
+                        const theme = localStorage.getItem('theme') || 'dark';
+                        const msgBg = isMine 
+                            ? 'bg-orange-600 text-white' 
+                            : (theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-gray-200 text-gray-900');
+
+                        const canDelete = isMine || currentUserRole === 'admin' || currentUserRole === 'moderator';
+
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
+                        msgDiv.innerHTML = `
+                            <div class="max-w-[70%]">
+                                ${!isMine ? `<p class="text-[10px] text-orange-500 font-bold mb-1">@${escapeHtml(msg.username)}</p>` : ''}
+                                <div class="${msgBg} rounded-2xl px-4 py-3 shadow-lg relative">
+                                    ${msg.replyTo ? `
+                                        <div class="border-l-2 border-white/30 pl-2 mb-2 text-xs opacity-70">
+                                            <p class="font-bold">@${escapeHtml(msg.replyTo.username)}</p>
+                                            <p class="truncate">${escapeHtml(msg.replyTo.text)}</p>
+                                        </div>
+                                    ` : ''}
+                                    <p class="text-sm break-words">${escapeHtml(msg.text)}</p>
+                                    <div class="flex justify-between items-center mt-1">
+                                        <p class="text-[9px] opacity-60">${formatTime(msg.time)}</p>
+                                        ${canDelete ? `<button onclick="deleteMessage('${msgId}')" class="text-[9px] opacity-60 hover:opacity-100 ml-2"><i class="fas fa-trash"></i></button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(msgDiv);
+                    }
+                });
+
+                if (scrollAtBottom) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
+        }
+
+        // Обновление активности пользователя (для защиты от спама)
+        async function updateUserActivity() {
+            if (!auth.currentUser) return;
+            
+            try {
+                const activityRef = doc(db, "user_activity", auth.currentUser.uid);
+                await setDoc(activityRef, {
+                    lastMessageTime: Date.now()
+                }, { merge: true });
+            } catch(e) {
+                console.error('Activity update error:', e);
+            }
+        }
+
+        window.sendMsg = async () => {
+            if (isSending) {
+                showToast('Хабарлама жіберілуде...', 'error');
+                return;
+            }
+
+            const input = document.getElementById('msg-input');
+            const sendBtn = document.getElementById('send-btn');
+            const text = input.value.trim();
+
+            if (!text) {
+                showToast('Хабарлама бос болмауы керек!', 'error');
+                return;
+            }
+
+            if (text.length > 1000) {
+                showToast('Хабарлама тым ұзын! (макс. 1000 таңба)', 'error');
+                return;
+            }
+
+            if (!auth.currentUser) {
+                showToast('Кіріңіз!', 'error');
+                return;
+            }
+
+            // Проверка кулдауна на клиенте
+            const now = Date.now();
+            const timeSinceLastMessage = now - lastMessageTime;
+            if (timeSinceLastMessage < MESSAGE_COOLDOWN) {
+                const secondsLeft = Math.ceil((MESSAGE_COOLDOWN - timeSinceLastMessage) / 1000);
+                showToast(`Тым жиі жібересіз! ${secondsLeft} секунд күтіңіз.`, 'error');
+                return;
+            }
+
+            isSending = true;
+            sendBtn.classList.add('sending-indicator');
+            input.disabled = true;
+
+            try {
+                const u = await getDoc(doc(db, "users", auth.currentUser.uid));
+                const username = u.exists() ? u.data().username : 'User';
+
+                const msgData = {
+                    uid: auth.currentUser.uid,
+                    username: username,
+                    text: text,
+                    time: Date.now()
+                };
+
+                if (replyData) {
+                    msgData.replyTo = replyData;
+                    cancelReply();
+                }
+
+                await addDoc(collection(db, "global_chat"), msgData);
+                await updateUserActivity();
+                
+                lastMessageTime = Date.now();
+                input.value = '';
+                document.getElementById('char-counter').textContent = '0/1000';
+                
+                showToast('Хабарлама жіберілді!', 'success');
+            } catch(e) {
+                console.error('Send error:', e);
+                
+                if (e.code === 'permission-denied') {
+                    showToast('Тым жиі жібересіз! 6 секунд күтіңіз.', 'error');
+                } else if (e.code === 'unauthenticated') {
+                    showToast('Қайта кіріңіз!', 'error');
+                    setTimeout(() => location.href = 'index.html', 2000);
+                } else {
+                    showToast('Хабарлама жіберу қатесі!', 'error');
+                }
+            } finally {
+                isSending = false;
+                sendBtn.classList.remove('sending-indicator');
+                input.disabled = false;
+                input.focus();
+            }
+        };
+
+        window.cancelReply = () => {
+            replyData = null;
+            document.getElementById('reply-box').classList.add('hidden');
+        };
+
+        window.deleteMessage = async (msgId) => {
+            if (!confirm('Хабарламаны өшіруге сенімдісіз бе?')) return;
+            
+            try {
+                await deleteDoc(doc(db, "global_chat", msgId));
+                showToast('Хабарлама өшірілді', 'success');
+                
+                // Удаляем из кеша
+                messagesCache.delete(msgId);
+                
+                // Удаляем из DOM
+                const container = document.getElementById('chat-messages');
+                const msgElements = container.querySelectorAll('[onclick*="' + msgId + '"]');
+                msgElements.forEach(el => {
+                    const msgDiv = el.closest('.flex');
+                    if (msgDiv) msgDiv.remove();
+                });
+            } catch(e) {
+                console.error('Delete error:', e);
+                
+                if (e.code === 'permission-denied') {
+                    showToast('Өшіруге рұқсат жоқ!', 'error');
+                } else {
+                    showToast('Қате болды!', 'error');
+                }
+            }
+        };
+
+        document.getElementById('msg-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMsg();
+            }
+        });
+
+        // Автоматическая очистка старых сообщений из кеша (опционально)
+        setInterval(() => {
+            const container = document.getElementById('chat-messages');
+            if (container.children.length > 100) {
+                // Удаляем первые 20 сообщений
+                for (let i = 0; i < 20; i++) {
+                    if (container.firstChild) {
+                        container.removeChild(container.firstChild);
+                    }
+                }
+            }
+        }, 60000); // Каждую минуту
+    </script>
+</body>
+</html>

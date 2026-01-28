@@ -1,0 +1,67 @@
+// ========================================
+// 🔥 FIREBASE STORAGE RULES
+// ========================================
+// Правила для загрузки изображений и файлов
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========================================
+    // ПАПКА: avatars (аватары пользователей)
+    // ========================================
+    match /avatars/{userId}/{fileName} {
+      // Читать могут все
+      allow read: if true;
+      
+      // Загружать может только владелец
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024  // Максимум 5MB
+        && request.resource.contentType.matches('image/.*');  // Только изображения
+    }
+    
+    // ========================================
+    // ПАПКА: posters (постеры контента)
+    // ========================================
+    match /posters/{fileName} {
+      // Читать могут все
+      allow read: if true;
+      
+      // Загружать могут только админы и модераторы
+      allow write: if request.auth != null
+        && (getUserRole() == 'admin' || getUserRole() == 'moderator')
+        && request.resource.size < 10 * 1024 * 1024  // Максимум 10MB
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // ========================================
+    // ПАПКА: backgrounds (фоны)
+    // ========================================
+    match /backgrounds/{fileName} {
+      // Читать могут все
+      allow read: if true;
+      
+      // Загружать могут только админы
+      allow write: if request.auth != null
+        && getUserRole() == 'admin'
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // ========================================
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ========================================
+    function getUserRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // ========================================
+    // ЗАПРЕТИТЬ ВСЕ ОСТАЛЬНОЕ
+    // ========================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

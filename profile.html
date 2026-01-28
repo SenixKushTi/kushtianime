@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <title>Профиль – Kushti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ea580c;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideOut {
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #ea580c;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-6 transition-colors duration-300">
+    <div id="offline-banner" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50">
+        <i class="fas fa-wifi-slash mr-2"></i>Интернет байланысы жоқ
+    </div>
+
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between mb-10">
+            <button onclick="location.href='index.html'" class="text-orange-500 font-bold">← БАСТЫ БЕТ</button>
+            <button id="admin-btn" onclick="location.href='admin.html'" class="hidden text-orange-500" title="Админ панель"><i class="fas fa-shield-alt"></i></button>
+            <button onclick="toggleTheme()"><i id="theme-icon" class="fas fa-moon text-white"></i></button>
+        </div>
+
+        <!-- ИСПРАВЛЕНО: Коллекции с правильной работой -->
+        <div class="mb-6 p-6 rounded-3xl border">
+            <h2 class="text-xl font-black mb-6 text-orange-500 uppercase">Менің коллекцияларым</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <button onclick="showCollection('watching')" id="btn-watching" class="p-4 rounded-xl border hover:border-orange-500 transition">
+                    <i class="fas fa-play-circle text-2xl text-orange-500 mb-2"></i>
+                    <p class="text-xs font-bold">Қарап жатырмын</p>
+                    <p id="count-watching" class="text-xl font-black text-orange-500">0</p>
+                </button>
+                <button onclick="showCollection('favorite')" id="btn-favorite" class="p-4 rounded-xl border hover:border-orange-500 transition">
+                    <i class="fas fa-heart text-2xl text-red-500 mb-2"></i>
+                    <p class="text-xs font-bold">Сүйіктілер</p>
+                    <p id="count-favorite" class="text-xl font-black text-red-500">0</p>
+                </button>
+                <button onclick="showCollection('completed')" id="btn-completed" class="p-4 rounded-xl border hover:border-orange-500 transition">
+                    <i class="fas fa-check-circle text-2xl text-green-500 mb-2"></i>
+                    <p class="text-xs font-bold">Кӛрдім</p>
+                    <p id="count-completed" class="text-xl font-black text-green-500">0</p>
+                </button>
+                <button onclick="showCollection('planned')" id="btn-planned" class="p-4 rounded-xl border hover:border-orange-500 transition">
+                    <i class="fas fa-clock text-2xl text-blue-500 mb-2"></i>
+                    <p class="text-xs font-bold">Жоспарда</p>
+                    <p id="count-planned" class="text-xl font-black text-blue-500">0</p>
+                </button>
+            </div>
+            <div id="collection-loader" class="hidden flex justify-center py-4">
+                <div class="loader"></div>
+            </div>
+            <div id="collection-content" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4"></div>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-6">
+            <div class="p-8 rounded-[40px] border">
+                <h2 class="text-xl font-black mb-8 text-orange-500 uppercase">Өңдеу</h2>
+                <div class="space-y-6">
+                    <input type="text" id="p-un" placeholder="Никнейм" class="w-full p-4 rounded-2xl border outline-none focus:border-orange-500">
+                    <textarea id="p-bio" placeholder="Өзім туралы" class="w-full p-4 rounded-2xl border outline-none h-32"></textarea>
+                    <button onclick="saveProfile()" class="w-full bg-orange-600 py-4 rounded-2xl font-black uppercase text-white">Сақтау</button>
+                    <button onclick="logout()" class="w-full bg-red-600 py-4 rounded-2xl font-black uppercase text-white">Шығу</button>
+                </div>
+            </div>
+
+            <!-- ИСПРАВЛЕНО: Поиск друзей с правильной темой -->
+            <div class="p-8 rounded-[40px] border">
+                <h2 class="text-xl font-black mb-8 text-orange-500 uppercase">Дос іздеу</h2>
+                <div class="flex gap-2 mb-6">
+                    <input type="text" id="f-input" placeholder="Никнейм..." class="flex-1 p-4 rounded-2xl border outline-none">
+                    <button onclick="findFriend()" class="px-6 rounded-2xl bg-orange-600 text-white hover:bg-orange-700"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="f-loader" class="hidden flex justify-center">
+                    <div class="loader"></div>
+                </div>
+                <div id="f-res" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            </div>
+
+            <div class="p-8 rounded-[40px] border">
+                <h2 class="text-xl font-black mb-8 text-orange-500 uppercase flex items-center gap-2">
+                    Достар <span id="friends-count" class="text-sm bg-orange-600 px-2 py-1 rounded-full text-white">0</span>
+                </h2>
+                <div id="friends-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <div class="mt-6 p-8 rounded-[40px] border">
+            <h2 class="text-xl font-black mb-6 text-orange-500 uppercase flex items-center gap-2">
+                Сұранстар <span id="requests-count" class="text-sm bg-orange-600 px-2 py-1 rounded-full text-white">0</span>
+            </h2>
+            <div id="requests-list" class="grid md:grid-cols-3 gap-4"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyB3Tf0kqjLPinrVrcxzB_0Niy3RIL9FJ5Q", authDomain: "kushti-anime.firebaseapp.com", projectId: "kushti-anime", storageBucket: "kushti-anime.firebasestorage.app", messagingSenderId: "539636802828", appId: "1:539636802828:web:9d6d7877d88ac452d61529", measurementId: "G-7ZTFL5TVCS" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Toast
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Offline
+        window.addEventListener('online', () => {
+            document.getElementById('offline-banner').classList.add('hidden');
+            showToast('Интернет қосылды', 'success');
+        });
+        window.addEventListener('offline', () => {
+            document.getElementById('offline-banner').classList.remove('hidden');
+        });
+
+        // ИСПРАВЛЕНО: Получаем текущую тему динамически
+        function getThemeColors() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            return {
+                cardBg: theme === 'dark' ? 'bg-[#0b0f1a]' : 'bg-gray-100',
+                cardBorder: theme === 'dark' ? 'border-slate-800' : 'border-gray-300',
+                hoverBorder: 'hover:border-orange-500'
+            };
+        }
+
+        function applyTheme() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            const body = document.body;
+            const cards = document.querySelectorAll('.border');
+            const inputs = document.querySelectorAll('input, textarea');
+            const icon = document.getElementById('theme-icon');
+            
+            if (theme === 'dark') {
+                body.classList.add('bg-[#0b0f1a]', 'text-white');
+                body.classList.remove('bg-gray-50', 'text-gray-900');
+                cards.forEach(c => {
+                    c.classList.add('bg-slate-900', 'border-slate-800');
+                    c.classList.remove('bg-white', 'border-gray-200');
+                });
+                inputs.forEach(i => {
+                    i.classList.add('bg-[#0b0f1a]', 'border-slate-800', 'text-white');
+                    i.classList.remove('bg-gray-100', 'border-gray-300', 'text-gray-900');
+                });
+                icon.classList.replace('fa-sun', 'fa-moon');
+                icon.classList.add('text-white');
+                icon.classList.remove('text-gray-900');
+            } else {
+                body.classList.add('bg-gray-50', 'text-gray-900');
+                body.classList.remove('bg-[#0b0f1a]', 'text-white');
+                cards.forEach(c => {
+                    c.classList.add('bg-white', 'border-gray-200');
+                    c.classList.remove('bg-slate-900', 'border-slate-800');
+                });
+                inputs.forEach(i => {
+                    i.classList.add('bg-gray-100', 'border-gray-300', 'text-gray-900');
+                    i.classList.remove('bg-[#0b0f1a]', 'border-slate-800', 'text-white');
+                });
+                icon.classList.replace('fa-moon', 'fa-sun');
+                icon.classList.remove('text-white');
+                icon.classList.add('text-gray-900');
+            }
+        }
+
+        window.toggleTheme = () => {
+            const current = localStorage.getItem('theme') || 'dark';
+            localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+            location.reload();
+        };
+
+        applyTheme();
+
+        onAuthStateChanged(auth, async u => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'moderator')) {
+                        document.getElementById('admin-btn').classList.remove('hidden');
+                    }
+                } catch(e) { console.error('Role check error:', e); }
+            }
+            if(!u) {
+                location.href = 'index.html';
+                return;
+            }
+            const snap = await getDoc(doc(db, "users", u.uid));
+            if(snap.exists()){
+                document.getElementById('p-un').value = snap.data().username || "";
+                document.getElementById('p-bio').value = snap.data().bio || "";
+            }
+            loadCollections();
+            loadFriends();
+            loadRequests();
+        });
+
+        // ИСПРАВЛЕНО: Коллекции загружаются правильно
+        async function loadCollections() {
+            const collections = ['watching', 'favorite', 'completed', 'planned'];
+            for (const col of collections) {
+                const q = query(collection(db, "collections"), 
+                    where("userId", "==", auth.currentUser.uid),
+                    where("type", "==", col));
+                const snap = await getDocs(q);
+                document.getElementById(`count-${col}`).innerText = snap.size;
+            }
+        }
+
+        window.showCollection = async (type) => {
+            const container = document.getElementById('collection-content');
+            const loader = document.getElementById('collection-loader');
+            const colors = getThemeColors();
+            
+            // Показываем loader
+            loader.classList.remove('hidden');
+            container.innerHTML = '';
+            
+            const q = query(collection(db, "collections"),
+                where("userId", "==", auth.currentUser.uid),
+                where("type", "==", type));
+            const snap = await getDocs(q);
+            
+            loader.classList.add('hidden');
+            
+            if (snap.empty) {
+                container.innerHTML = '<p class="col-span-full text-center opacity-60 py-8">Әзірше бос</p>';
+                return;
+            }
+            
+            for (const d of snap.docs) {
+                const item = d.data();
+                const animeDoc = await getDoc(doc(db, "content", item.animeId));
+                if (animeDoc.exists()) {
+                    const anime = animeDoc.data();
+                    container.innerHTML += `<div onclick="location.href='details.html?id=${item.animeId}'" class="${colors.cardBg} rounded-2xl overflow-hidden border ${colors.cardBorder} ${colors.hoverBorder} transition cursor-pointer shadow-lg">
+                        <img src="${anime.poster_url}" class="w-full aspect-[2/3] object-cover" alt="${anime.title_kz}">
+                        <div class="p-3 text-xs font-bold truncate">${anime.title_kz}</div>
+                    </div>`;
+                }
+            }
+        };
+
+        window.saveProfile = async () => {
+            const u = auth.currentUser;
+            const username = document.getElementById('p-un').value.trim().toLowerCase();
+            const bio = document.getElementById('p-bio').value.trim();
+            
+            if (username.length < 3 || username.length > 20) {
+                showToast('Никнейм 3-20 символ болуы керек!', 'error');
+                return;
+            }
+            
+            try {
+                await setDoc(doc(db, "users", u.uid), { username, bio }, { merge: true });
+                showToast("Сақталды!", 'success');
+            } catch(e) {
+                showToast('Қате болды!', 'error');
+            }
+        };
+
+        window.logout = async () => {
+            if (confirm('Шығуға сенімдісіз бе?')) {
+                await signOut(auth);
+                location.href = 'index.html';
+            }
+        };
+
+        document.getElementById('f-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') findFriend();
+        });
+
+        // ИСПРАВЛЕНО: Поиск друзей с правильной темой и loader
+        window.findFriend = async () => {
+            const val = document.getElementById('f-input').value.trim();
+            const res = document.getElementById('f-res'); 
+            const loader = document.getElementById('f-loader');
+            const colors = getThemeColors();
+            
+            if (!val) {
+                res.innerHTML = '<p class="opacity-60 text-sm">Никнейм жазыңыз</p>';
+                return;
+            }
+            
+            res.innerHTML = '';
+            loader.classList.remove('hidden');
+            
+            try {
+                const searchLower = val.toLowerCase();
+                const usersRef = collection(db, "users");
+                const snapshot = await getDocs(usersRef);
+                const matchedUsers = [];
+                
+                snapshot.forEach(d => {
+                    const username = d.data().username || '';
+                    if (username.toLowerCase().includes(searchLower) && d.id !== auth.currentUser.uid) {
+                        matchedUsers.push({ id: d.id, data: d.data() });
+                    }
+                });
+                
+                loader.classList.add('hidden');
+                
+                if (matchedUsers.length === 0) {
+                    res.innerHTML = '<p class="opacity-60 text-sm">Табылмады</p>';
+                    return;
+                }
+                
+                for (const user of matchedUsers) {
+                    const friendStatus = await checkFriendship(user.id);
+                    
+                    res.innerHTML += `<div class="${colors.cardBg} p-4 rounded-2xl border ${colors.cardBorder} ${colors.hoverBorder} transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1 cursor-pointer" onclick="location.href='user.html?uid=${user.id}'">
+                                <span class="text-orange-500 font-bold">@${user.data.username}</span>
+                                <p class="text-xs opacity-60 mt-1 line-clamp-2">${user.data.bio || 'Био жоқ'}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-3">
+                            <button onclick="location.href='user.html?uid=${user.id}'" class="flex-1 text-xs px-4 py-2 rounded-lg ${colors.cardBg} ${colors.hoverBorder} border">
+                                <i class="fas fa-user mr-1"></i> Профиль
+                            </button>
+                            ${friendStatus === 'none' ? `<button onclick="event.stopPropagation(); sendRequest('${user.id}', '${user.data.username}')" class="flex-1 text-xs bg-orange-600 px-4 py-2 rounded-lg hover:bg-orange-700 text-white"><i class="fas fa-user-plus mr-1"></i> Қосу</button>` : ''}
+                            ${friendStatus === 'pending' ? `<span class="flex-1 text-xs text-center opacity-60 px-4 py-2 ${colors.cardBg} rounded-lg border">Жіберілді</span>` : ''}
+                            ${friendStatus === 'friends' ? `<button onclick="event.stopPropagation(); location.href='direct.html?friendId=${user.id}'" class="flex-1 text-xs bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 text-white"><i class="fas fa-comment mr-1"></i> Жазу</button>` : ''}
+                        </div>
+                    </div>`;
+                }
+            } catch(e) {
+                console.error('Search error:', e);
+                loader.classList.add('hidden');
+                res.innerHTML = '<p class="text-red-500 text-sm">Қате болды</p>';
+            }
+        };
+
+        async function checkFriendship(friendId) {
+            const q1 = query(collection(db, "friends"), 
+                where("userId", "==", auth.currentUser.uid),
+                where("friendId", "==", friendId));
+            const snap1 = await getDocs(q1);
+            if (!snap1.empty) return 'friends';
+            
+            const q2 = query(collection(db, "friend_requests"),
+                where("from", "==", auth.currentUser.uid),
+                where("to", "==", friendId));
+            const snap2 = await getDocs(q2);
+            if (!snap2.empty) return 'pending';
+            
+            return 'none';
+        }
+
+        window.sendRequest = async (toId, toUsername) => {
+            try {
+                const myDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+                await addDoc(collection(db, "friend_requests"), {
+                    from: auth.currentUser.uid,
+                    fromUsername: myDoc.data().username,
+                    to: toId,
+                    toUsername: toUsername,
+                    time: Date.now()
+                });
+                showToast('Сұраныс жіберілді!', 'success');
+                findFriend();
+            } catch(e) {
+                console.error(e);
+                showToast('Қате болды!', 'error');
+            }
+        };
+
+        function loadRequests() {
+            const colors = getThemeColors();
+            onSnapshot(query(collection(db, "friend_requests"), 
+                where("to", "==", auth.currentUser.uid),
+                orderBy("time", "desc")), snap => {
+                const list = document.getElementById('requests-list');
+                list.innerHTML = '';
+                document.getElementById('requests-count').innerText = snap.size;
+                
+                if (snap.empty) {
+                    list.innerHTML = '<p class="opacity-60 text-sm col-span-full text-center py-4">Сұранстар жоқ</p>';
+                    return;
+                }
+                
+                snap.forEach(d => {
+                    const r = d.data();
+                    list.innerHTML += `<div class="${colors.cardBg} p-4 rounded-2xl border ${colors.cardBorder}">
+                        <p class="text-orange-500 font-bold mb-2 cursor-pointer" onclick="location.href='user.html?uid=${r.from}'">@${r.fromUsername}</p>
+                        <div class="flex gap-2">
+                            <button onclick="acceptRequest('${d.id}', '${r.from}', '${r.fromUsername}')" class="flex-1 bg-green-600 py-2 rounded-lg text-xs hover:bg-green-700 text-white">Қабылдау</button>
+                            <button onclick="rejectRequest('${d.id}')" class="flex-1 bg-red-600 py-2 rounded-lg text-xs hover:bg-red-700 text-white">Қабылдамау</button>
+                        </div>
+                    </div>`;
+                });
+            });
+        }
+
+        window.acceptRequest = async (requestId, friendId, friendUsername) => {
+            try {
+                const myDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+                
+                await addDoc(collection(db, "friends"), {
+                    userId: auth.currentUser.uid,
+                    username: myDoc.data().username,
+                    friendId: friendId,
+                    friendUsername: friendUsername,
+                    time: Date.now()
+                });
+                
+                await addDoc(collection(db, "friends"), {
+                    userId: friendId,
+                    username: friendUsername,
+                    friendId: auth.currentUser.uid,
+                    friendUsername: myDoc.data().username,
+                    time: Date.now()
+                });
+                
+                await deleteDoc(doc(db, "friend_requests", requestId));
+                showToast('Дос қосылды!', 'success');
+            } catch(e) {
+                console.error(e);
+                showToast('Қате болды!', 'error');
+            }
+        };
+
+        window.rejectRequest = async (requestId) => {
+            await deleteDoc(doc(db, "friend_requests", requestId));
+            showToast('Сұраныс жойылды', 'success');
+        };
+
+        // ИСПРАВЛЕНО: Динамическое обновление без reload
+        function loadFriends() {
+            const colors = getThemeColors();
+            onSnapshot(query(collection(db, "friends"), 
+                where("userId", "==", auth.currentUser.uid),
+                orderBy("time", "desc")), snap => {
+                const list = document.getElementById('friends-list');
+                list.innerHTML = '';
+                document.getElementById('friends-count').innerText = snap.size;
+                
+                if (snap.empty) {
+                    list.innerHTML = '<p class="opacity-60 text-sm text-center py-4">Достар жоқ</p>';
+                    return;
+                }
+                
+                snap.forEach(d => {
+                    const f = d.data();
+                    list.innerHTML += `<div class="${colors.cardBg} p-3 rounded-2xl border ${colors.cardBorder} ${colors.hoverBorder} transition">
+                        <div class="flex justify-between items-center">
+                            <span class="text-orange-500 font-bold text-sm cursor-pointer" onclick="location.href='user.html?uid=${f.friendId}'">@${f.friendUsername}</span>
+                            <div class="flex gap-2">
+                                <button onclick="location.href='direct.html?friendId=${f.friendId}'" class="text-xs bg-orange-600 px-3 py-1 rounded-lg hover:bg-orange-700 text-white"><i class="fas fa-comment"></i></button>
+                                <button onclick="removeFriend('${d.id}', '${f.friendId}')" class="text-xs bg-red-600 px-3 py-1 rounded-lg hover:bg-red-700 text-white"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            });
+        }
+
+        window.removeFriend = async (docId, friendId) => {
+            if (!confirm('Досты өшіруге сенімдісіз бе?')) return;
+            
+            try {
+                await deleteDoc(doc(db, "friends", docId));
+                
+                const q = query(collection(db, "friends"),
+                    where("userId", "==", friendId),
+                    where("friendId", "==", auth.currentUser.uid));
+                const snap = await getDocs(q);
+                snap.forEach(async d => await deleteDoc(d.ref));
+                
+                showToast('Дос өшірілді', 'success');
+            } catch(e) {
+                console.error(e);
+                showToast('Қате болды!', 'error');
+            }
+        };
+    </script>
+</body>
+</html>

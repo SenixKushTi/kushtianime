@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чат – Kushti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ea580c;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideOut {
+            to { transform: translateX(400px); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="font-sans h-screen flex flex-col transition-colors duration-300">
+    <div id="offline-banner" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50">
+        <i class="fas fa-wifi-slash mr-2"></i>Интернет байланысы жоқ
+    </div>
+
+    <nav class="p-4 border-b flex justify-between items-center sticky top-0 z-50">
+        <button onclick="location.href='profile.html'" class="text-orange-500 font-bold">← АРТҚА</button>
+        <div class="flex items-center gap-2">
+            <div id="online-indicator" class="w-2 h-2 rounded-full bg-slate-700"></div>
+            <span id="friend-name" class="font-black text-white italic uppercase">Жүктелуде...</span>
+        </div>
+        <button id="admin-btn" onclick="location.href='admin.html'" class="hidden text-orange-500" title="Админ панель"><i class="fas fa-shield-alt"></i></button>
+        <button onclick="toggleTheme()"><i id="theme-icon" class="fas fa-moon"></i></button>
+    </nav>
+
+    <!-- Запрос на подтверждение диалога -->
+    <div id="request-panel" class="hidden p-4 bg-orange-600/10 border-b border-orange-600">
+        <div class="max-w-4xl mx-auto">
+            <p class="text-sm text-white mb-3">
+                <i class="fas fa-envelope mr-2"></i>
+                <span id="requester-name"></span> сізбен хабарласқысы келеді
+            </p>
+            <div class="flex gap-2">
+                <button onclick="acceptRequest()" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-700">
+                    <i class="fas fa-check mr-2"></i>Қабылдау
+                </button>
+                <button onclick="declineRequest()" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-700">
+                    <i class="fas fa-times mr-2"></i>Қабылдамау
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блокировка чата до подтверждения -->
+    <div id="waiting-panel" class="hidden flex-1 flex items-center justify-center">
+        <div class="text-center p-6">
+            <i class="fas fa-clock text-4xl text-orange-500 mb-4"></i>
+            <p class="text-white font-bold mb-2">Күту режимі</p>
+            <p class="text-sm opacity-60 text-white">Қарсы тарап хабарласуды растағанша күтіңіз</p>
+        </div>
+    </div>
+
+    <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <p class="text-center opacity-40 text-xs text-white">Шифрланған чат</p>
+    </div>
+
+    <div id="typing-indicator" class="hidden px-6 py-2 text-xs opacity-60 italic text-white">
+        <span id="typing-user"></span> теріп жатыр...
+    </div>
+
+    <div id="input-panel" class="p-4 border-t">
+        <div class="max-w-4xl mx-auto flex gap-3 items-end">
+            <textarea id="msg-input" placeholder="Хабарлама жазу..." rows="1"
+                class="flex-1 p-4 rounded-2xl outline-none border focus:border-orange-500 transition resize-none max-h-32"></textarea>
+            <button onclick="sendMessage()" class="bg-orange-600 w-12 h-12 rounded-2xl font-bold hover:bg-orange-700 transition flex items-center justify-center text-white">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, getDoc, setDoc, where, getDocs, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3Tf0kqjLPinrVrcxzB_0Niy3RIL9FJ5Q",
+            authDomain: "kushti-anime.firebaseapp.com",
+            projectId: "kushti-anime",
+            storageBucket: "kushti-anime.firebasestorage.app",
+            messagingSenderId: "539636802828",
+            appId: "1:539636802828:web:9d6d7877d88ac452d61529",
+            measurementId: "G-7ZTFL5TVCS"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const friendId = new URLSearchParams(window.location.search).get('friendId');
+        let chatId = "";
+        let typingTimeout;
+        let messagesCache = new Map();
+        let currentUserId = "";
+        let chatApproved = false;
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        window.addEventListener('online', () => {
+            document.getElementById('offline-banner').classList.add('hidden');
+            showToast('Интернет қосылды', 'success');
+        });
+        window.addEventListener('offline', () => {
+            document.getElementById('offline-banner').classList.remove('hidden');
+        });
+
+        if (!friendId) {
+            showToast('Дос таңдалмаған!', 'error');
+            location.href = 'profile.html';
+        }
+
+        function applyTheme() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            const body = document.body;
+            const nav = document.querySelector('nav');
+            const footer = document.querySelector('.p-4.border-t');
+            const input = document.getElementById('msg-input');
+            
+            if (theme === 'dark') {
+                body.classList.add('bg-[#0b0f1a]', 'text-white');
+                body.classList.remove('bg-gray-50', 'text-gray-900');
+                nav.classList.add('bg-slate-900', 'border-slate-800');
+                nav.classList.remove('bg-white', 'border-gray-200');
+                footer.classList.add('bg-slate-900', 'border-slate-800');
+                footer.classList.remove('bg-white', 'border-gray-200');
+                input.classList.add('bg-slate-950', 'border-slate-800', 'text-white');
+                input.classList.remove('bg-gray-100', 'border-gray-300');
+                document.getElementById('messages-container').classList.add('bg-slate-950/30');
+                document.getElementById('messages-container').classList.remove('bg-gray-100/30');
+                document.getElementById('theme-icon').classList.replace('fa-sun', 'fa-moon');
+            } else {
+                body.classList.add('bg-gray-50', 'text-gray-900');
+                body.classList.remove('bg-[#0b0f1a]', 'text-white');
+                nav.classList.add('bg-white', 'border-gray-200');
+                nav.classList.remove('bg-slate-900', 'border-slate-800');
+                footer.classList.add('bg-white', 'border-gray-200');
+                footer.classList.remove('bg-slate-900', 'border-slate-800');
+                input.classList.add('bg-gray-100', 'border-gray-300');
+                input.classList.remove('bg-slate-950', 'border-slate-800', 'text-white');
+                document.getElementById('messages-container').classList.add('bg-gray-100/30');
+                document.getElementById('messages-container').classList.remove('bg-slate-950/30');
+                document.getElementById('theme-icon').classList.replace('fa-moon', 'fa-sun');
+            }
+        }
+
+        window.toggleTheme = () => {
+            const current = localStorage.getItem('theme') || 'dark';
+            localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+            location.reload();
+        };
+
+        applyTheme();
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Жаңа';
+            if (diff < 3600000) return Math.floor(diff / 60000) + ' мин';
+            if (date.toDateString() === now.toDateString()) {
+                return date.toLocaleTimeString('kk-KZ', { hour: '2-digit', minute: '2-digit' });
+            }
+            return date.toLocaleDateString('kk-KZ', { day: 'numeric', month: 'short' });
+        }
+
+        // Проверка статуса чата и подтверждения
+        async function checkChatApproval() {
+            try {
+                const chatDoc = await getDoc(doc(db, "chat_approvals", chatId));
+                
+                if (!chatDoc.exists()) {
+                    // Чат еще не создан, создаем запрос
+                    const currentUserDoc = await getDoc(doc(db, "users", currentUserId));
+                    const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Unknown';
+                    
+                    await setDoc(doc(db, "chat_approvals", chatId), {
+                        requester: currentUserId,
+                        requesterName: currentUsername,
+                        recipient: friendId,
+                        status: 'pending',
+                        createdAt: Date.now()
+                    });
+                    
+                    // Показываем панель ожидания
+                    document.getElementById('waiting-panel').classList.remove('hidden');
+                    document.getElementById('messages-container').classList.add('hidden');
+                    document.getElementById('input-panel').classList.add('hidden');
+                    chatApproved = false;
+                    return;
+                }
+                
+                const chatData = chatDoc.data();
+                
+                if (chatData.status === 'pending') {
+                    // Если текущий пользователь получатель - показываем панель запроса
+                    if (chatData.recipient === currentUserId) {
+                        document.getElementById('request-panel').classList.remove('hidden');
+                        document.getElementById('requester-name').textContent = '@' + chatData.requesterName;
+                        document.getElementById('messages-container').classList.add('hidden');
+                        document.getElementById('input-panel').classList.add('hidden');
+                        chatApproved = false;
+                    } else {
+                        // Инициатор ждет подтверждения
+                        document.getElementById('waiting-panel').classList.remove('hidden');
+                        document.getElementById('messages-container').classList.add('hidden');
+                        document.getElementById('input-panel').classList.add('hidden');
+                        chatApproved = false;
+                    }
+                } else if (chatData.status === 'approved') {
+                    // Чат подтвержден, разрешаем общение
+                    chatApproved = true;
+                    document.getElementById('request-panel').classList.add('hidden');
+                    document.getElementById('waiting-panel').classList.add('hidden');
+                    document.getElementById('messages-container').classList.remove('hidden');
+                    document.getElementById('input-panel').classList.remove('hidden');
+                    loadMessages();
+                } else if (chatData.status === 'declined') {
+                    showToast('Запрос отклонен', 'error');
+                    setTimeout(() => location.href = 'profile.html', 2000);
+                }
+            } catch(e) {
+                console.error('Chat approval check error:', e);
+            }
+        }
+
+        // Принять запрос
+        window.acceptRequest = async () => {
+            try {
+                await updateDoc(doc(db, "chat_approvals", chatId), {
+                    status: 'approved',
+                    approvedAt: Date.now()
+                });
+                showToast('Запрос қабылданды!', 'success');
+                checkChatApproval();
+            } catch(e) {
+                console.error('Accept error:', e);
+                showToast('Қате болды!', 'error');
+            }
+        };
+
+        // Отклонить запрос
+        window.declineRequest = async () => {
+            try {
+                await updateDoc(doc(db, "chat_approvals", chatId), {
+                    status: 'declined',
+                    declinedAt: Date.now()
+                });
+                showToast('Запрос қабылданбады', 'error');
+                setTimeout(() => location.href = 'profile.html', 2000);
+            } catch(e) {
+                console.error('Decline error:', e);
+                showToast('Қате болды!', 'error');
+            }
+        };
+
+        function loadMessages() {
+            const q = query(collection(db, "direct_messages"), where("chatId", "==", chatId), orderBy("timestamp", "asc"));
+            onSnapshot(q, (snapshot) => {
+                const container = document.getElementById('messages-container');
+                const scrollAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        const msgId = change.doc.id;
+
+                        if (messagesCache.has(msgId)) return;
+                        messagesCache.set(msgId, msg);
+
+                        const isMine = msg.userId === currentUserId;
+                        const theme = localStorage.getItem('theme') || 'dark';
+                        const msgBg = isMine 
+                            ? 'bg-orange-600 text-white' 
+                            : (theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-gray-200 text-gray-900');
+
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
+                        msgDiv.innerHTML = `
+                            <div class="max-w-[70%]">
+                                ${!isMine ? `<p class="text-[10px] text-orange-500 font-bold mb-1">@${escapeHtml(msg.username)}</p>` : ''}
+                                <div class="${msgBg} rounded-2xl px-4 py-3 shadow-lg">
+                                    <p class="text-sm break-words">${escapeHtml(msg.text)}</p>
+                                    <p class="text-[9px] opacity-60 mt-1 text-right">${formatTime(msg.timestamp)}</p>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(msgDiv);
+                    }
+                });
+
+                if (scrollAtBottom) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
+        }
+
+        window.sendMessage = async () => {
+            if (!chatApproved) {
+                showToast('Чат әлі расталмаған!', 'error');
+                return;
+            }
+
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", currentUserId));
+                const username = userDoc.exists() ? userDoc.data().username : 'Unknown';
+
+                await addDoc(collection(db, "direct_messages"), {
+                    chatId: chatId,
+                    userId: currentUserId,
+                    username: username,
+                    text: text,
+                    timestamp: Date.now()
+                });
+
+                input.value = '';
+                input.style.height = 'auto';
+            } catch(e) {
+                console.error('Send error:', e);
+                showToast('Хабарлама жіберу қатесі!', 'error');
+            }
+        };
+
+        document.getElementById('msg-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        document.getElementById('msg-input').addEventListener('input', (e) => {
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                location.href = 'index.html';
+                return;
+            }
+
+            currentUserId = user.uid;
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'moderator')) {
+                    document.getElementById('admin-btn').classList.remove('hidden');
+                }
+            } catch(e) { 
+                console.error('Role check error:', e); 
+            }
+
+            const ids = [user.uid, friendId].sort();
+            chatId = ids[0] + "_" + ids[1];
+
+            if (!chatId) {
+                showToast('Қате: chatId құрылмады!', 'error');
+                return;
+            }
+
+            // Загрузка информации о друге
+            try {
+                const friendDoc = await getDoc(doc(db, "users", friendId));
+                if (friendDoc.exists()) {
+                    document.getElementById('friend-name').textContent = '@' + friendDoc.data().username;
+                }
+            } catch(e) {
+                console.error('Friend load error:', e);
+            }
+
+            // Проверка статуса подтверждения чата
+            checkChatApproval();
+
+            // Слушаем изменения статуса
+            onSnapshot(doc(db, "chat_approvals", chatId), (doc) => {
+                if (doc.exists()) {
+                    checkChatApproval();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kushti – Онлайн кино платформасы</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* CSS ПЕРЕМЕННЫЕ ДЛЯ ТЕМ */
+        :root {
+            --bg-primary: #18181b;
+            --bg-secondary: #27272a;
+            --bg-card: #18181b;
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --border-color: #3f3f46;
+            --accent-color: #ea580c;
+        }
+
+        body.light-mode {
+            --bg-primary: #f4f4f5;
+            --bg-secondary: #e4e4e7;
+            --bg-card: #ffffff;
+            --text-primary: #18181b;
+            --text-secondary: #52525b;
+            --border-color: #d4d4d8;
+            --accent-color: #ea580c;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .bg-custom-card {
+            background-color: var(--bg-card);
+            border-color: var(--border-color);
+        }
+
+        .text-custom-primary {
+            color: var(--text-primary);
+        }
+
+        .text-custom-secondary {
+            color: var(--text-secondary);
+        }
+
+        .border-custom {
+            border-color: var(--border-color);
+        }
+
+        nav {
+            background-color: var(--bg-secondary);
+            border-color: var(--border-color);
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ea580c;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        
+        @keyframes slideOut {
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #ea580c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .category-btn, .genre-btn {
+            transition: all 0.2s ease;
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .category-btn:hover, .genre-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .category-btn.active {
+            background: #ea580c !important;
+            color: white !important;
+        }
+        
+        .genre-btn.active {
+            background: #ea580c !important;
+            color: white !important;
+        }
+
+        /* Модальное окно */
+        .modal-bg {
+            background-color: var(--bg-card);
+        }
+
+        input, select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        input:focus, select:focus {
+            border-color: #ea580c !important;
+        }
+
+        /* Комментарии */
+        .comment-card {
+            background-color: var(--bg-card);
+            border-color: var(--border-color);
+        }
+
+        .search-input {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+    </style>
+</head>
+<body class="transition-colors duration-300">
+    <div id="offline-banner" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50">
+        <i class="fas fa-wifi-slash mr-2"></i>Интернет байланысы жоқ
+    </div>
+
+    <nav class="p-4 border-b sticky top-0 z-40 flex justify-between items-center backdrop-blur-lg">
+        <div class="flex items-center gap-3">
+            <img src="https://lh3.googleusercontent.com/u/0/d/15Rj9MeJhiBZzk7UZZ3uWYvng3lPQmbo-=w1000" 
+                 onclick="location.href='index.html'" 
+                 class="h-8 w-auto cursor-pointer object-contain" 
+                 alt="Kushti Logo">
+            <h1 class="text-2xl md:text-3xl font-black text-custom-primary italic uppercase">Kushti</h1>
+        </div>
+        <div class="flex gap-4 items-center">
+            <button onclick="toggleTheme()" class="text-xl text-custom-primary">
+                <i id="theme-icon" class="fas fa-moon"></i>
+            </button>
+            <button onclick="location.href='chat.html'" class="text-xl text-custom-primary">
+                <i class="fas fa-comments"></i>
+            </button>
+            <button id="admin-btn" onclick="location.href='admin.html'" class="hidden text-xl text-orange-500" title="Админ панель">
+                <i class="fas fa-shield-alt"></i>
+            </button>
+            <div id="auth-ui">
+                <button onclick="openM()" class="bg-orange-600 px-4 py-2 rounded-xl font-bold text-sm text-white">КІРУ</button>
+            </div>
+            <div id="user-ui" class="hidden flex items-center gap-3">
+                <span id="u-name" onclick="location.href='profile.html'" class="text-orange-400 font-bold cursor-pointer text-sm underline"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4">
+        <!-- Поиск -->
+        <div class="mb-6">
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    placeholder="🔍 Іздеу (атауы бойынша)..." 
+                    class="search-input w-full p-4 rounded-xl border outline-none focus:border-orange-500 text-sm"
+                    oninput="searchContent()"
+                >
+            </div>
+        </div>
+
+        <!-- Категории -->
+        <div class="mb-6">
+            <h2 class="text-custom-primary font-bold mb-3 text-lg">Категориялар</h2>
+            <div class="flex gap-3 flex-wrap">
+                <button onclick="filterByCategory('all')" class="category-btn active px-6 py-3 rounded-xl font-bold text-sm border">
+                    Барлығы
+                </button>
+                <button onclick="filterByCategory('anime')" class="category-btn px-6 py-3 rounded-xl font-bold text-sm border">
+                    🎌 Аниме
+                </button>
+                <button onclick="filterByCategory('series')" class="category-btn px-6 py-3 rounded-xl font-bold text-sm border">
+                    📺 Сериалдар
+                </button>
+                <button onclick="filterByCategory('dorama')" class="category-btn px-6 py-3 rounded-xl font-bold text-sm border">
+                    🎭 Дорама
+                </button>
+            </div>
+        </div>
+
+        <!-- Жанры -->
+        <div class="mb-6">
+            <h2 class="text-custom-primary font-bold mb-3 text-lg">Жанрлар</h2>
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="filterByGenre('all')" class="genre-btn active px-4 py-2 rounded-lg text-xs font-bold border">
+                    Барлығы
+                </button>
+                <button onclick="filterByGenre('action')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Экшн
+                </button>
+                <button onclick="filterByGenre('comedy')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Комедия
+                </button>
+                <button onclick="filterByGenre('drama')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Драма
+                </button>
+                <button onclick="filterByGenre('romance')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Романтика
+                </button>
+                <button onclick="filterByGenre('fantasy')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Фэнтези
+                </button>
+                <button onclick="filterByGenre('horror')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Қорқынышты
+                </button>
+                <button onclick="filterByGenre('thriller')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Триллер
+                </button>
+                <button onclick="filterByGenre('scifi')" class="genre-btn px-4 py-2 rounded-lg text-xs font-bold border">
+                    Ғылыми фантастика
+                </button>
+            </div>
+        </div>
+
+        <!-- Сортировка -->
+        <div class="mb-6 flex justify-between items-center">
+            <h2 class="text-custom-primary font-bold text-lg">Контент</h2>
+            <select id="sort-select" onchange="sortContent()" class="px-4 py-2 rounded-xl border text-sm font-bold">
+                <option value="newest">Жаңадан ескіге</option>
+                <option value="rating">Рейтинг бойынша</option>
+                <option value="views">Көрілімдер бойынша</option>
+                <option value="title">Атауы бойынша</option>
+            </select>
+        </div>
+
+        <div id="loading" class="loader"></div>
+        <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 hidden"></div>
+    </main>
+
+    <!-- Модальное окно авторизации -->
+    <div id="auth-m" class="hidden fixed inset-0 bg-black/90 flex justify-center items-center z-[100] p-4">
+        <div class="modal-bg p-6 rounded-3xl w-full max-w-sm border border-custom">
+            <h2 id="m-t" class="text-xl font-bold mb-6 text-orange-500 text-center uppercase">Кіру</h2>
+            <div id="reg-fields" class="hidden">
+                <input type="text" id="m-un" placeholder="Никнейм" class="w-full p-4 rounded-xl mb-3 outline-none border">
+                <p class="text-[10px] mb-3 opacity-60 text-custom-secondary">Никнейм: 3-20 символ, тек әріптер/сандар</p>
+            </div>
+            <input type="email" id="m-e" placeholder="Email" class="w-full p-4 rounded-xl mb-3 outline-none border">
+            <input type="password" id="m-p" placeholder="Құпия сөз (мин. 6 символ)" class="w-full p-4 rounded-xl mb-6 outline-none border">
+            <button onclick="authAcc()" id="m-b" class="w-full bg-orange-600 py-4 rounded-xl font-black uppercase tracking-widest text-white">Растау</button>
+            <p id="m-sw" class="text-center mt-4 text-xs text-custom-secondary cursor-pointer underline" onclick="switchM()">Тіркелу</p>
+            <p class="text-center mt-3 text-xs text-custom-secondary cursor-pointer underline" onclick="closeM()">Жабу</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDK v11 -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged,
+            signOut
+        } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc, 
+            getDoc,
+            getDocs,
+            onSnapshot,
+            query,
+            where,
+            orderBy,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+        // Firebase конфигурация
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3Tf0kqjLPinrVrcxzB_0Niy3RIL9FJ5Q",
+            authDomain: "kushti-anime.firebaseapp.com",
+            projectId: "kushti-anime",
+            storageBucket: "kushti-anime.firebasestorage.app",
+            messagingSenderId: "539636802828",
+            appId: "1:539636802828:web:9d6d7877d88ac452d61529",
+            measurementId: "G-7ZTFL5TVCS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Глобальные переменные
+        let allContent = [];
+        let currentCategory = 'all';
+        let currentGenre = 'all';
+        let currentSort = 'newest';
+        let searchQuery = '';
+
+        // Переключение темы
+        window.toggleTheme = () => {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+            
+            if (body.classList.contains('light-mode')) {
+                body.classList.remove('light-mode');
+                icon.className = 'fas fa-moon';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.classList.add('light-mode');
+                icon.className = 'fas fa-sun';
+                localStorage.setItem('theme', 'light');
+            }
+            
+            // Перерисовка контента с новой темой
+            renderContent();
+        };
+
+        // Применение сохраненной темы при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const icon = document.getElementById('theme-icon');
+            
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                icon.className = 'fas fa-sun';
+            } else {
+                icon.className = 'fas fa-moon';
+            }
+        });
+
+        // Toast уведомления
+        window.showToast = (msg, type = 'success') => {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${msg}`;
+            document.body.appendChild(t);
+            setTimeout(() => {
+                t.classList.add('hide');
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        };
+
+        // Модальное окно
+        let isReg = false;
+        
+        window.openM = () => {
+            document.getElementById('auth-m').classList.remove('hidden');
+        };
+        
+        window.closeM = () => {
+            document.getElementById('auth-m').classList.add('hidden');
+        };
+        
+        window.switchM = () => {
+            isReg = !isReg;
+            document.getElementById('m-t').innerText = isReg ? 'Тіркелу' : 'Кіру';
+            document.getElementById('m-b').innerText = isReg ? 'Тіркелу' : 'Кіру';
+            document.getElementById('m-sw').innerText = isReg ? 'Кіру' : 'Тіркелу';
+            document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
+        };
+
+        // Валидация никнейма
+        const validateUsername = (username) => {
+            if (!username || username.trim() === '') {
+                return { valid: false, error: 'Никнейм бос болмауы керек!' };
+            }
+            
+            const trimmed = username.trim().toLowerCase();
+            
+            if (trimmed.length < 3) {
+                return { valid: false, error: 'Никнейм кемінде 3 символдан тұруы керек!' };
+            }
+            
+            if (trimmed.length > 20) {
+                return { valid: false, error: 'Никнейм 20 символдан аспауы керек!' };
+            }
+            
+            if (!/^[a-z0-9_]+$/.test(trimmed)) {
+                return { valid: false, error: 'Никнеймде тек әріптер, сандар және _ болуы мүмкін!' };
+            }
+            
+            return { valid: true, username: trimmed };
+        };
+
+        // Проверка уникальности никнейма
+        const isUsernameUnique = async (username) => {
+            try {
+                const usersRef = collection(db, 'users');
+                const q = query(usersRef, where('username', '==', username));
+                const snapshot = await getDocs(q);
+                return snapshot.empty;
+            } catch (error) {
+                console.error('Username check error:', error);
+                return false;
+            }
+        };
+
+        // Авторизация и регистрация
+        window.authAcc = async () => {
+            const e = document.getElementById('m-e').value.trim();
+            const p = document.getElementById('m-p').value;
+            
+            if (!e || !p) {
+                showToast('Барлық өрістерді толтырыңыз!', 'error');
+                return;
+            }
+
+            try {
+                if (isReg) {
+                    const un = document.getElementById('m-un').value;
+                    const validation = validateUsername(un);
+                    
+                    if (!validation.valid) {
+                        showToast(validation.error, 'error');
+                        return;
+                    }
+
+                    // ⚠️ ВРЕМЕННО ОТКЛЮЧЕНО - проверка username (нужен индекс в Firestore)
+                    // const isUnique = await isUsernameUnique(validation.username);
+                    // if (!isUnique) {
+                    //     showToast('Бұл никнейм қолданыста. Басқасын таңдаңыз!', 'error');
+                    //     return;
+                    // }
+
+                    // Создание пользователя
+                    const res = await createUserWithEmailAndPassword(auth, e, p);
+                    
+                    // КРИТИЧНО: Создаем документ в users сразу после регистрации
+                    await setDoc(doc(db, "users", res.user.uid), { 
+                        username: validation.username, 
+                        email: e, 
+                        bio: "Kushti қолданушысы",
+                        role: "user",
+                        createdAt: Date.now()
+                    });
+                    
+                    showToast('Тіркелу сәтті! Қош келдіңіз!', 'success');
+                } else { 
+                    await signInWithEmailAndPassword(auth, e, p);
+                    showToast('Кіру сәтті!', 'success');
+                }
+                closeM();
+            } catch(err) { 
+                console.error('Auth error:', err);
+                const errors = {
+                    'auth/email-already-in-use': 'Бұл email қолданыста!',
+                    'auth/invalid-email': 'Email форматы дұрыс емес!',
+                    'auth/weak-password': 'Құпия сөз өте әлсіз (мин. 6 символ)!',
+                    'auth/user-not-found': 'Email немесе құпия сөз дұрыс емес!',
+                    'auth/wrong-password': 'Email немесе құпия сөз дұрыс емес!',
+                    'auth/invalid-credential': 'Email немесе құпия сөз дұрыс емес!'
+                };
+                showToast(errors[err.code] || 'Қате: ' + err.message, 'error');
+            }
+        };
+
+        // Отслеживание состояния авторизации
+        onAuthStateChanged(auth, async u => {
+            document.getElementById('auth-ui').classList.toggle('hidden', !!u);
+            document.getElementById('user-ui').classList.toggle('hidden', !u);
+            
+            if(u) {
+                try {
+                    const userDoc = await getDoc(doc(db, "users", u.uid));
+                    if(userDoc.exists()) {
+                        const userData = userDoc.data();
+                        document.getElementById('u-name').innerText = "@" + userData.username;
+                        
+                        const role = userData.role || 'user';
+                        if(role === 'admin' || role === 'moderator') {
+                            document.getElementById('admin-btn').classList.remove('hidden');
+                        }
+                    } else {
+                        document.getElementById('u-name').innerText = "Профиль";
+                    }
+                } catch(e) {
+                    console.error('User load error:', e);
+                }
+            }
+        });
+
+        // Поиск контента
+        window.searchContent = () => {
+            searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+            renderContent();
+        };
+
+        // Фильтрация по категориям
+        window.filterByCategory = (category) => {
+            currentCategory = category;
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            renderContent();
+        };
+
+        // Фильтрация по жанрам
+        window.filterByGenre = (genre) => {
+            currentGenre = genre;
+            document.querySelectorAll('.genre-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            renderContent();
+        };
+
+        // Сортировка
+        window.sortContent = () => {
+            currentSort = document.getElementById('sort-select').value;
+            renderContent();
+        };
+
+        // Рендеринг контента
+        function renderContent() {
+            let filtered = [...allContent];
+
+            // Поиск
+            if (searchQuery) {
+                filtered = filtered.filter(item => {
+                    const title = (item.title_kz || '').toLowerCase();
+                    const titleRu = (item.title_ru || '').toLowerCase();
+                    return title.includes(searchQuery) || titleRu.includes(searchQuery);
+                });
+            }
+
+            // Фильтрация по категории
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(item => item.category === currentCategory);
+            }
+
+            // Фильтрация по жанру
+            if (currentGenre !== 'all') {
+                filtered = filtered.filter(item => 
+                    item.genres && item.genres.includes(currentGenre)
+                );
+            }
+
+            // Сортировка
+            switch(currentSort) {
+                case 'rating':
+                    filtered.sort((a, b) => (b.avgRating || 0) - (a.avgRating || 0));
+                    break;
+                case 'views':
+                    filtered.sort((a, b) => (b.views || 0) - (a.views || 0));
+                    break;
+                case 'title':
+                    filtered.sort((a, b) => (a.title_kz || '').localeCompare(b.title_kz || ''));
+                    break;
+                case 'newest':
+                default:
+                    filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    break;
+            }
+
+            const g = document.getElementById('grid');
+            g.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                g.innerHTML = `<p class="col-span-full text-center opacity-60 text-custom-primary py-8">
+                    ${searchQuery ? 'Іздеу бойынша ештеңе табылмады' : 'Контент табылмады'}
+                </p>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const categoryIcon = item.category === 'anime' ? '🎌' : 
+                                   item.category === 'series' ? '📺' : '🎭';
+                
+                const card = document.createElement('div');
+                card.onclick = () => location.href = `details.html?id=${item.id}`;
+                card.className = 'bg-custom-card rounded-2xl overflow-hidden border border-custom hover:border-orange-500 transition shadow-lg cursor-pointer';
+                
+                card.innerHTML = `
+                    <div class="relative">
+                        <img src="${item.poster_url}" class="w-full aspect-[2/3] object-cover" alt="${item.title_kz || 'Контент'}">
+                        <div class="absolute top-2 left-2 bg-black/80 px-2 py-1 rounded-lg text-xs text-white">${categoryIcon}</div>
+                        <div class="absolute top-2 right-2 bg-black/80 px-2 py-1 rounded-lg text-xs text-white">⭐ ${(item.avgRating || 0).toFixed(1)}</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs font-bold truncate text-custom-primary mb-1">${item.title_kz || 'Атауы жоқ'}</div>
+                        <div class="text-[10px] opacity-60 text-custom-secondary">👁 ${item.views || 0} көрілім</div>
+                    </div>
+                `;
+                
+                g.appendChild(card);
+            });
+        }
+
+        // Загрузка контента из Firestore
+        onSnapshot(collection(db, "content"), snapshot => {
+            const loading = document.getElementById('loading');
+            const grid = document.getElementById('grid'); 
+            
+            loading.classList.add('hidden');
+            grid.classList.remove('hidden');
+            
+            allContent = [];
+            snapshot.forEach(doc => {
+                allContent.push({ id: doc.id, ...doc.data() });
+            });
+
+            renderContent();
+        });
+
+        // Проверка соединения
+        window.addEventListener('online', () => {
+            document.getElementById('offline-banner').classList.add('hidden');
+            showToast('Интернет байланысы қалпына келді!', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            document.getElementById('offline-banner').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>

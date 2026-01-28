@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детальдар — Kushti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* CSS ПЕРЕМЕННЫЕ ДЛЯ ТЕМ */
+        :root {
+            --bg-primary: #18181b;
+            --bg-secondary: #27272a;
+            --bg-card: #18181b;
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --border-color: #3f3f46;
+            --accent-color: #ea580c;
+        }
+
+        body.light-mode {
+            --bg-primary: #f4f4f5;
+            --bg-secondary: #e4e4e7;
+            --bg-card: #ffffff;
+            --text-primary: #18181b;
+            --text-secondary: #52525b;
+            --border-color: #d4d4d8;
+            --accent-color: #ea580c;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .bg-custom-card {
+            background-color: var(--bg-card);
+            border-color: var(--border-color);
+        }
+
+        .text-custom-primary {
+            color: var(--text-primary);
+        }
+
+        .text-custom-secondary {
+            color: var(--text-secondary);
+        }
+
+        .border-custom {
+            border-color: var(--border-color);
+        }
+
+        nav {
+            background-color: var(--bg-secondary);
+            border-color: var(--border-color);
+        }
+
+        input, textarea, select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: #ea580c !important;
+        }
+
+        .toast {
+            position: fixed; top: 20px; right: 20px; background: #ea580c; color: white;
+            padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999; animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.hide { animation: slideOut 0.3s ease forwards; }
+        @keyframes slideOut { to { transform: translateX(400px); opacity: 0; } }
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #ea580c; border-radius: 50%;
+            width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 40px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .like-btn, .dislike-btn { transition: all 0.3s ease; }
+        .like-btn:hover { transform: scale(1.1); color: #22c55e; }
+        .dislike-btn:hover { transform: scale(1.1); color: #ef4444; }
+        .like-btn.active { color: #22c55e; font-weight: bold; }
+        .dislike-btn.active { color: #ef4444; font-weight: bold; }
+    </style>
+</head>
+<body class="transition-colors duration-300">
+    <div id="offline-banner" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50">
+        <i class="fas fa-wifi-slash mr-2"></i>Интернет байланысы жоқ
+    </div>
+
+    <nav class="p-4 border-b flex justify-between items-center">
+        <button onclick="history.back()" class="text-custom-primary font-bold">← АРТҚА</button>
+        <div class="flex items-center gap-2">
+          <img src="https://lh3.googleusercontent.com/u/0/d/15Rj9MeJhiBZzk7UZZ3uWYvng3lPQmbo-=w1000" 
+     onclick="location.href='index.html'" 
+     class="h-7 w-auto cursor-pointer" 
+     alt="Kushti">
+            <span class="font-black italic text-custom-primary">Kushti</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="admin-btn" onclick="location.href='admin.html'" class="hidden text-custom-primary">
+                <i class="fas fa-shield-alt"></i>
+            </button>
+            <button onclick="location.href='profile.html'" class="text-custom-primary">
+                <i class="fas fa-user-circle text-lg"></i>
+            </button>
+            <button onclick="toggleTheme()">
+                <i id="theme-icon" class="fas fa-moon text-custom-primary"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div id="loading" class="text-center py-20">
+        <div class="loader"></div>
+        <p class="text-custom-secondary mt-4">Жүктеу...</p>
+    </div>
+
+    <main id="anime-content" class="hidden max-w-7xl mx-auto p-4">
+        <!-- Информация об аниме -->
+        <div class="grid lg:grid-cols-3 gap-6 mb-8">
+            <div>
+                <img id="a-poster" src="" alt="Poster" class="w-full rounded-2xl shadow-lg mb-4">
+                <div class="flex justify-between text-xs text-custom-secondary mb-2">
+                    <span id="avg-rating">⭐ 0.0</span>
+                    <span id="views-count">👁 0</span>
+                </div>
+                
+                <!-- РЕЙТИНГ -->
+                <div class="bg-custom-card border border-custom rounded-xl p-4 mb-4">
+                    <p class="text-xs font-bold mb-3 text-custom-primary">БАҒАЛАҢЫЗ:</p>
+                    <div class="flex justify-center gap-1 mb-2" id="star-rating">
+                        <i class="fas fa-star text-2xl cursor-pointer hover:text-yellow-400 transition" onclick="rate(1)"></i>
+                        <i class="fas fa-star text-2xl cursor-pointer hover:text-yellow-400 transition" onclick="rate(2)"></i>
+                        <i class="fas fa-star text-2xl cursor-pointer hover:text-yellow-400 transition" onclick="rate(3)"></i>
+                        <i class="fas fa-star text-2xl cursor-pointer hover:text-yellow-400 transition" onclick="rate(4)"></i>
+                        <i class="fas fa-star text-2xl cursor-pointer hover:text-yellow-400 transition" onclick="rate(5)"></i>
+                    </div>
+                    <p id="my-rating" class="text-center text-xs text-custom-secondary"></p>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2">
+                <h1 id="a-title" class="text-3xl font-black mb-4 text-custom-primary">Атау</h1>
+                <p id="a-desc" class="text-custom-secondary mb-6 leading-relaxed">Сипаттама</p>
+                
+                <div id="genres" class="flex flex-wrap gap-2 mb-6"></div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-custom-card border border-custom rounded-xl p-4">
+                        <p class="text-xs text-custom-secondary mb-1">ЖЫЛ:</p>
+                        <p id="a-year" class="font-bold text-custom-primary">—</p>
+                    </div>
+                    <div class="bg-custom-card border border-custom rounded-xl p-4">
+                        <p class="text-xs text-custom-secondary mb-1">ТІЛ:</p>
+                        <p id="a-lang" class="font-bold text-custom-primary">—</p>
+                    </div>
+                    <div class="bg-custom-card border border-custom rounded-xl p-4">
+                        <p class="text-xs text-custom-secondary mb-1">БӨЛІМДЕР:</p>
+                        <p id="a-ep" class="font-bold text-custom-primary">—</p>
+                    </div>
+                    <div class="bg-custom-card border border-custom rounded-xl p-4">
+                        <p class="text-xs text-custom-secondary mb-1">СТАТУС:</p>
+                        <p id="a-status" class="font-bold text-custom-primary">—</p>
+                    </div>
+                </div>
+
+                <button id="watch-btn" onclick="startWatch()" class="hidden w-full bg-orange-600 py-4 rounded-xl font-bold text-white hover:bg-orange-700 transition mb-4">
+                    <i class="fas fa-play mr-2"></i>ҚАРАУ
+                </button>
+                
+                <p id="auth-required-msg" class="hidden text-center py-4 text-custom-secondary text-sm">
+                    <i class="fas fa-lock mr-2"></i>Қарау үшін <a href="index.html" class="text-orange-500 underline">кіріңіз</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- ВИДЕОПЛЕЕР -->
+        <div id="player-section" class="hidden mb-8">
+            <div class="bg-custom-card border border-custom rounded-2xl p-6">
+                <h3 id="current-episode-title" class="text-xl font-black mb-4 text-custom-primary">Бөлім 1</h3>
+                <div class="relative pb-[56.25%] bg-black rounded-xl overflow-hidden mb-4">
+                    <iframe id="video-iframe" class="absolute top-0 left-0 w-full h-full" frameborder="0" allowfullscreen></iframe>
+                </div>
+
+                <!-- ЛАЙК/ДИЗЛАЙК -->
+                <div class="flex items-center gap-4 mb-6">
+                    <button onclick="toggleVideoLike()" class="like-btn flex items-center gap-2 px-4 py-2 rounded-lg border border-custom hover:bg-green-500 hover:text-white transition">
+                        <i class="fas fa-thumbs-up"></i>
+                        <span id="likes-count">0</span>
+                    </button>
+                    <button onclick="toggleVideoDislike()" class="dislike-btn flex items-center gap-2 px-4 py-2 rounded-lg border border-custom hover:bg-red-500 hover:text-white transition">
+                        <i class="fas fa-thumbs-down"></i>
+                        <span id="dislikes-count">0</span>
+                    </button>
+                </div>
+
+                <!-- КОММЕНТАРИИ К ВИДЕО -->
+                <div class="mb-6">
+                    <h4 class="font-bold mb-3 text-custom-primary">Бөлім туралы пікірлер:</h4>
+                    <div class="flex gap-2 mb-4">
+                        <textarea id="video-comment-input" class="flex-1 outline-none text-sm p-3 border border-custom rounded-xl" placeholder="Пікір жазу..." rows="2"></textarea>
+                        <button onclick="postVideoComment()" class="px-6 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="video-comments-list" class="space-y-3"></div>
+                </div>
+
+                <!-- ЭПИЗОДЫ -->
+                <div>
+                    <h4 class="font-bold mb-3 text-custom-primary">Барлық бөлімдер:</h4>
+                    <div id="episodes-list" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- КОММЕНТАРИИ К КОНТЕНТУ -->
+        <div class="bg-custom-card border border-custom rounded-2xl p-6">
+            <h3 class="text-xl font-black mb-6 text-custom-primary">
+                <i class="fas fa-comments mr-2 text-orange-500"></i>ПІКІРЛЕР
+            </h3>
+
+            <div class="mb-6">
+                <textarea id="c-input" class="w-full outline-none text-sm p-4 border border-custom rounded-xl h-24" placeholder="Пікіріңізді жазыңыз..."></textarea>
+                <button onclick="postC()" class="w-full bg-orange-600 py-3 rounded-xl font-bold mt-3 text-sm text-white hover:bg-orange-700 transition">
+                    <i class="fas fa-paper-plane mr-2"></i>ПІКІР ЖІБЕРУ
+                </button>
+            </div>
+            
+            <div id="c-list" class="space-y-4"></div>
+            
+            <button id="load-more-comments" onclick="loadMoreComments()" class="hidden w-full mt-4 py-3 rounded-xl border border-custom text-custom-primary font-bold hover:bg-orange-500 hover:text-white transition">
+                Көбірек көрсету
+            </button>
+        </div>
+    </main>
+
+    <script type="module">
+        // ========================================
+        // ИМПОРТЫ ИЗ НОВЫХ МОДУЛЕЙ
+        // ========================================
+        import { auth, db } from './NEW_firebaseConfig.js';
+        import { 
+            toggleVideoLike as moduleToggleLike, 
+            toggleVideoDislike as moduleToggleDislike,
+            getVideoReactions,
+            setRating as moduleSetRating,
+            getUserRating,
+            getAverageRating
+        } from './NEW_ratingsModule.js';
+        import { 
+            showToast, 
+            initTheme, 
+            toggleTheme as moduleToggleTheme,
+            escapeHtml,
+            initOfflineIndicator 
+        } from './NEW_utils.js';
+
+        // Импорты Firebase
+        import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+        import { 
+            collection, doc, getDoc, getDocs, addDoc, 
+            updateDoc, deleteDoc, increment, query, where, orderBy, onSnapshot, limit, startAfter
+        } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+        // ========================================
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        // ========================================
+        const animeId = new URLSearchParams(window.location.search).get('id');
+        let currentUserRating = 0;
+        let currentUserRole = 'user';
+        let currentEpisodeIndex = null;
+        let animeData = null;
+        const COMMENTS_PER_PAGE = 10;
+        let lastCommentDoc = null;
+        let hasMoreComments = true;
+
+        // ========================================
+        // ЭКСПОРТ ФУНКЦИЙ В WINDOW
+        // ========================================
+        window.showToast = showToast;
+        window.toggleTheme = moduleToggleTheme;
+        window.escapeHtml = escapeHtml;
+
+        // ========================================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ========================================
+        initTheme();
+        initOfflineIndicator();
+
+        // ========================================
+        // РЕЙТИНГ
+        // ========================================
+        window.rate = async (stars) => {
+            const result = await moduleSetRating(animeId, stars);
+            if (result.success) {
+                showToast(result.message, 'success');
+                currentUserRating = stars;
+                updateStars(stars);
+                document.getElementById('my-rating').innerText = `Сіздің бағаңыз: ${stars} ⭐`;
+                document.getElementById('avg-rating').innerText = `⭐ ${result.avgRating}`;
+            } else {
+                showToast(result.message, 'error');
+            }
+        };
+
+        const updateStars = (rating) => {
+            const stars = document.querySelectorAll('#star-rating i');
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.remove('far');
+                    star.classList.add('fas', 'text-yellow-400');
+                } else {
+                    star.classList.remove('fas', 'text-yellow-400');
+                    star.classList.add('far');
+                }
+            });
+        };
+
+        // ========================================
+        // НАЧАЛО ПРОСМОТРА
+        // ========================================
+        window.startWatch = async () => {
+            document.getElementById('player-section').classList.remove('hidden');
+            document.getElementById('player-section').scrollIntoView({ behavior: 'smooth' });
+            
+            if (animeData.episodes && animeData.episodes.length > 0) {
+                loadEpisode(0);
+            } else if (animeData.video_url) {
+                document.getElementById('video-iframe').src = animeData.video_url;
+                currentEpisodeIndex = 0;
+                await loadVideoReactions();
+            }
+            
+            try {
+                await updateDoc(doc(db, "content", animeId), { views: increment(1) });
+            } catch (e) {
+                console.error('Views update error:', e);
+            }
+        };
+
+        // ========================================
+        // ЗАГРУЗКА ЭПИЗОДА
+        // ========================================
+        window.loadEpisode = async (index) => {
+            if (!animeData.episodes || index >= animeData.episodes.length) return;
+            
+            currentEpisodeIndex = index;
+            const episode = animeData.episodes[index];
+            document.getElementById('video-iframe').src = episode.url;
+            document.getElementById('current-episode-title').innerText = `Бөлім ${index + 1}`;
+            
+            // Обновление активной кнопки
+            document.querySelectorAll('#episodes-list button').forEach((btn, i) => {
+                if (i === index) {
+                    btn.classList.add('bg-orange-600', 'text-white');
+                    btn.classList.remove('bg-custom-card');
+                } else {
+                    btn.classList.remove('bg-orange-600', 'text-white');
+                    btn.classList.add('bg-custom-card');
+                }
+            });
+            
+            await loadVideoReactions();
+            loadEpisodeComments();
+        };
+
+        // ========================================
+        // ЛАЙК/ДИЗЛАЙК С ИСПОЛЬЗОВАНИЕМ МОДУЛЯ
+        // ========================================
+        window.toggleVideoLike = async () => {
+            if (!auth.currentUser) {
+                showToast('Кіріңіз!', 'error');
+                return;
+            }
+
+            if (currentEpisodeIndex === null) {
+                showToast('Бөлімді таңдаңыз!', 'error');
+                return;
+            }
+
+            const result = await moduleToggleLike(animeId, currentEpisodeIndex);
+            if (result.success) {
+                showToast(result.message, 'success');
+                await loadVideoReactions();
+            } else {
+                showToast(result.message, 'error');
+            }
+        };
+
+        window.toggleVideoDislike = async () => {
+            if (!auth.currentUser) {
+                showToast('Кіріңіз!', 'error');
+                return;
+            }
+
+            if (currentEpisodeIndex === null) {
+                showToast('Бөлімді таңдаңыз!', 'error');
+                return;
+            }
+
+            const result = await moduleToggleDislike(animeId, currentEpisodeIndex);
+            if (result.success) {
+                showToast(result.message, 'success');
+                await loadVideoReactions();
+            } else {
+                showToast(result.message, 'error');
+            }
+        };
+
+        // ========================================
+        // ЗАГРУЗКА РЕАКЦИЙ НА ВИДЕО
+        // ========================================
+        const loadVideoReactions = async () => {
+            if (currentEpisodeIndex === null) return;
+
+            const result = await getVideoReactions(animeId, currentEpisodeIndex);
+            
+            if (result.success) {
+                document.getElementById('likes-count').innerText = result.likesCount;
+                document.getElementById('dislikes-count').innerText = result.dislikesCount;
+
+                // Обновление активных кнопок
+                const likeBtn = document.querySelector('.like-btn');
+                const dislikeBtn = document.querySelector('.dislike-btn');
+
+                likeBtn.classList.remove('active');
+                dislikeBtn.classList.remove('active');
+
+                if (result.userReaction === 'like') {
+                    likeBtn.classList.add('active');
+                } else if (result.userReaction === 'dislike') {
+                    dislikeBtn.classList.add('active');
+                }
+            }
+        };
+
+        // ========================================
+        // КОММЕНТАРИИ К ВИДЕО
+        // ========================================
+        window.postVideoComment = async () => {
+            const text = document.getElementById('video-comment-input').value.trim();
+            if (!text) {
+                showToast('Пікір бос болмауы керек!', 'error');
+                return;
+            }
+            if (!auth.currentUser) {
+                showToast('Кіріңіз!', 'error');
+                return;
+            }
+            
+            try {
+                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                const username = userDoc.exists() ? userDoc.data().username : 'User';
+                
+                await addDoc(collection(db, 'video_comments'), {
+                    animeId,
+                    episodeIndex: currentEpisodeIndex,
+                    userId: auth.currentUser.uid,
+                    username,
+                    text,
+                    time: Date.now()
+                });
+                
+                document.getElementById('video-comment-input').value = '';
+                showToast('Пікір жіберілді!', 'success');
+            } catch (e) {
+                console.error('Video comment error:', e);
+                showToast('Қате!', 'error');
+            }
+        };
+
+        const loadEpisodeComments = () => {
+            if (currentEpisodeIndex === null) return;
+
+            const videoCommentsQuery = query(
+                collection(db, 'video_comments'),
+                where('animeId', '==', animeId),
+                where('episodeIndex', '==', currentEpisodeIndex),
+                orderBy('time', 'desc')
+            );
+            
+            onSnapshot(videoCommentsQuery, (snapshot) => {
+                const list = document.getElementById('video-comments-list');
+                list.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    list.innerHTML = '<p class="text-center text-custom-secondary text-sm">Әзірше пікір жоқ</p>';
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const c = doc.data();
+                    const canDelete = auth.currentUser && 
+                        (c.userId === auth.currentUser.uid || currentUserRole === 'admin' || currentUserRole === 'moderator');
+
+                    list.innerHTML += `
+                        <div class="bg-custom-card border border-custom rounded-lg p-3">
+                            <div class="flex justify-between items-start mb-2">
+                                <p class="font-bold text-xs text-orange-500">${escapeHtml(c.username)}</p>
+                                ${canDelete ? `<button onclick="deleteVideoComment('${doc.id}')" class="text-red-500 text-xs"><i class="fas fa-trash"></i></button>` : ''}
+                            </div>
+                            <p class="text-sm text-custom-primary">${escapeHtml(c.text)}</p>
+                        </div>
+                    `;
+                });
+            });
+        };
+
+        window.deleteVideoComment = async (commentId) => {
+            if (!confirm('Пікірді жою керек пе?')) return;
+
+            try {
+                await deleteDoc(doc(db, 'video_comments', commentId));
+                showToast('Пікір жойылды', 'success');
+            } catch (e) {
+                console.error('Delete video comment error:', e);
+                showToast('Қате!', 'error');
+            }
+        };
+
+        // ========================================
+        // КОММЕНТАРИИ К КОНТЕНТУ
+        // ========================================
+        window.postC = async () => {
+            const text = document.getElementById('c-input').value.trim();
+            if (!text) {
+                showToast('Пікір бос болмауы керек!', 'error');
+                return;
+            }
+
+            if (!auth.currentUser) {
+                showToast('Пікір жазу үшін кіріңіз!', 'error');
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                const username = userDoc.exists() ? userDoc.data().username : 'User';
+
+                await addDoc(collection(db, 'comments'), {
+                    animeId,
+                    userId: auth.currentUser.uid,
+                    username,
+                    text,
+                    time: Date.now()
+                });
+
+                document.getElementById('c-input').value = '';
+                showToast('Пікір жіберілді!', 'success');
+                loadComments(true);
+            } catch (e) {
+                console.error('Comment error:', e);
+                showToast('Қате!', 'error');
+            }
+        };
+
+        const loadComments = async (reset = false) => {
+            if (reset) {
+                lastCommentDoc = null;
+                hasMoreComments = true;
+                document.getElementById('c-list').innerHTML = '';
+            }
+
+            if (!hasMoreComments) return;
+
+            try {
+                let q = query(
+                    collection(db, 'comments'),
+                    where('animeId', '==', animeId),
+                    orderBy('time', 'desc'),
+                    limit(COMMENTS_PER_PAGE)
+                );
+
+                if (lastCommentDoc) {
+                    q = query(q, startAfter(lastCommentDoc));
+                }
+
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    hasMoreComments = false;
+                    document.getElementById('load-more-comments').classList.add('hidden');
+                    if (reset) {
+                        document.getElementById('c-list').innerHTML = '<p class="text-center text-custom-secondary">Әзірше пікір жоқ</p>';
+                    }
+                    return;
+                }
+
+                lastCommentDoc = snapshot.docs[snapshot.docs.length - 1];
+
+                const list = document.getElementById('c-list');
+                snapshot.forEach((doc) => {
+                    const c = doc.data();
+                    const canDelete = auth.currentUser && 
+                        (c.userId === auth.currentUser.uid || currentUserRole === 'admin' || currentUserRole === 'moderator');
+
+                    const commentDiv = document.createElement('div');
+                    commentDiv.className = 'bg-custom-card border border-custom rounded-xl p-4';
+                    commentDiv.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <p class="font-bold text-sm text-orange-500">${escapeHtml(c.username)}</p>
+                            ${canDelete ? `<button onclick="deleteComment('${doc.id}')" class="text-red-500"><i class="fas fa-trash"></i></button>` : ''}
+                        </div>
+                        <p class="text-custom-primary">${escapeHtml(c.text)}</p>
+                        <p class="text-xs text-custom-secondary mt-2">${new Date(c.time).toLocaleString('kk-KZ')}</p>
+                    `;
+                    list.appendChild(commentDiv);
+                });
+
+                if (snapshot.docs.length < COMMENTS_PER_PAGE) {
+                    hasMoreComments = false;
+                    document.getElementById('load-more-comments').classList.add('hidden');
+                } else {
+                    document.getElementById('load-more-comments').classList.remove('hidden');
+                }
+
+            } catch (e) {
+                console.error('Load comments error:', e);
+            }
+        };
+
+        window.loadMoreComments = () => {
+            loadComments(false);
+        };
+
+        window.deleteComment = async (commentId) => {
+            if (!confirm('Пікірді жою керек пе?')) return;
+
+            try {
+                await deleteDoc(doc(db, 'comments', commentId));
+                showToast('Пікір жойылды', 'success');
+                loadComments(true);
+            } catch (e) {
+                console.error('Delete comment error:', e);
+                showToast('Қате!', 'error');
+            }
+        };
+
+        // ========================================
+        // ЗАГРУЗКА РОЛИ ПОЛЬЗОВАТЕЛЯ
+        // ========================================
+        const loadUserRole = async () => {
+            if (!auth.currentUser) return;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                if (userDoc.exists()) {
+                    currentUserRole = userDoc.data().role || 'user';
+                    if (currentUserRole === 'admin' || currentUserRole === 'moderator') {
+                        document.getElementById('admin-btn').classList.remove('hidden');
+                    }
+                }
+            } catch (e) {
+                console.error('Load user role error:', e);
+            }
+        };
+
+        // ========================================
+        // ЗАГРУЗКА КОНТЕНТА
+        // ========================================
+        const load = async () => {
+            if (!animeId) {
+                showToast('ID табылмады!', 'error');
+                setTimeout(() => location.href = 'index.html', 2000);
+                return;
+            }
+
+            try {
+                const animeDoc = await getDoc(doc(db, "content", animeId));
+                if (!animeDoc.exists()) {
+                    showToast('Контент табылмады!', 'error');
+                    setTimeout(() => location.href = 'index.html', 2000);
+                    return;
+                }
+                
+                animeData = animeDoc.data();
+                
+                document.getElementById('a-poster').src = animeData.poster_url || '';
+                document.getElementById('a-title').innerText = animeData.title_kz || 'Атауы жоқ';
+                document.getElementById('a-desc').innerText = animeData.description_kz || 'Сипаттама жоқ';
+                document.getElementById('a-year').innerText = animeData.year || '—';
+                document.getElementById('a-lang').innerText = animeData.language || '—';
+                document.getElementById('a-ep').innerText = animeData.episodes_count || '—';
+                document.getElementById('a-status').innerText = animeData.status || '—';
+                document.getElementById('avg-rating').innerText = `⭐ ${(animeData.avgRating || 0).toFixed(1)}`;
+                document.getElementById('views-count').innerText = `👁 ${animeData.views || 0}`;
+                
+                // Жанры
+                const genresDiv = document.getElementById('genres');
+                if (animeData.genres && animeData.genres.length > 0) {
+                    animeData.genres.forEach(g => {
+                        genresDiv.innerHTML += `<span class="px-3 py-1 bg-orange-500 text-white rounded-lg text-xs font-bold">${g}</span>`;
+                    });
+                }
+                
+                // Эпизоды
+                if (animeData.episodes && animeData.episodes.length > 0) {
+                    const episodesList = document.getElementById('episodes-list');
+                    animeData.episodes.forEach((ep, i) => {
+                        episodesList.innerHTML += `
+                            <button onclick="loadEpisode(${i})" class="bg-custom-card border border-custom px-3 py-2 rounded-lg font-bold text-xs hover:bg-orange-600 hover:text-white transition">
+                                ${i + 1}
+                            </button>
+                        `;
+                    });
+                }
+                
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('anime-content').classList.remove('hidden');
+                
+                // Загружаем комментарии
+                loadComments(true);
+                
+            } catch (e) {
+                console.error('Load error:', e);
+                showToast('Жүктеу қатесі!', 'error');
+            }
+        };
+
+        // ========================================
+        // ОТСЛЕЖИВАНИЕ АВТОРИЗАЦИИ
+        // ========================================
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                await loadUserRole();
+                
+                // Загружаем рейтинг пользователя
+                const ratingResult = await getUserRating(animeId);
+                if (ratingResult.success && ratingResult.rating) {
+                    currentUserRating = ratingResult.rating;
+                    updateStars(currentUserRating);
+                    document.getElementById('my-rating').innerText = `Сіздің бағаңыз: ${currentUserRating} ⭐`;
+                }
+                
+                const anime = await getDoc(doc(db, "content", animeId));
+                if (anime.exists()) {
+                    const data = anime.data();
+                    const hasVideo = (data.video_url && data.video_url.trim()) || (data.episodes && data.episodes.length > 0);
+                    if (hasVideo) {
+                        document.getElementById('watch-btn').classList.remove('hidden');
+                        document.getElementById('auth-required-msg').classList.add('hidden');
+                    }
+                }
+            } else {
+                const anime = await getDoc(doc(db, "content", animeId));
+                if (anime.exists()) {
+                    const data = anime.data();
+                    const hasVideo = (data.video_url && data.video_url.trim()) || (data.episodes && data.episodes.length > 0);
+                    if (hasVideo) {
+                        document.getElementById('watch-btn').classList.add('hidden');
+                        document.getElementById('auth-required-msg').classList.remove('hidden');
+                    }
+                }
+            }
+        });
+
+        load();
+    </script>
+</body>
+</html>

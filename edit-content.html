@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Контент өңдеу — KushTi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ea580c;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideOut {
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        .genre-checkbox {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .genre-checkbox:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-white min-h-screen">
+    <nav class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center">
+        <button onclick="location.href='admin.html'" class="text-orange-500"><i class="fas fa-chevron-left text-xl"></i></button>
+        <h1 class="text-2xl font-black text-orange-500 italic">КОНТЕНТ ӨҢДЕУ</h1>
+        <div class="flex gap-4">
+            <button onclick="location.href='index.html'" class="text-orange-500"><i class="fas fa-home mr-2"></i>Басты бет</button>
+            <button onclick="signOut()" class="text-red-500"><i class="fas fa-sign-out-alt mr-2"></i>Шығу</button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-4">
+        <div id="access-denied" class="hidden text-center py-20">
+            <i class="fas fa-lock text-6xl text-red-500 mb-4"></i>
+            <h2 class="text-2xl font-bold mb-2">Қол жетімсіз!</h2>
+            <p class="opacity-60">Сізде админ құқығы жоқ.</p>
+            <button onclick="location.href='index.html'" class="mt-4 bg-orange-600 px-6 py-3 rounded-xl">Басты бетке қайту</button>
+        </div>
+
+        <div id="edit-panel" class="hidden">
+            <!-- Редактирование контента -->
+            <div class="bg-slate-900 rounded-3xl p-6 mb-6 border border-slate-800">
+                <h2 class="text-xl font-bold text-orange-500 mb-4 uppercase flex items-center gap-2">
+                    <i class="fas fa-edit"></i>
+                    Контентті өңдеу
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm mb-2 opacity-70">Атауы (қазақша)</label>
+                        <input type="text" id="title-kz" class="w-full bg-slate-800 p-3 rounded-xl outline-none border border-slate-700 focus:border-orange-500" placeholder="Мысалы: Наруто">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-2 opacity-70">Постер URL</label>
+                        <input type="text" id="poster-url" class="w-full bg-slate-800 p-3 rounded-xl outline-none border border-slate-700 focus:border-orange-500" placeholder="https://...">
+                    </div>
+                </div>
+
+                <!-- Категория -->
+                <div class="mb-4">
+                    <label class="block text-sm mb-2 opacity-70">Категория</label>
+                    <select id="category-select" class="w-full bg-slate-800 p-3 rounded-xl outline-none border border-slate-700 focus:border-orange-500">
+                        <option value="anime">🎌 Аниме</option>
+                        <option value="series">📺 Сериал</option>
+                        <option value="dorama">🎭 Дорама</option>
+                    </select>
+                </div>
+
+                <!-- Жанры -->
+                <div class="mb-4">
+                    <label class="block text-sm mb-2 opacity-70">Жанрлар (бірнешеуін таңдауға болады)</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="action" class="genre-cb">
+                            <span class="text-sm">Экшн</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="comedy" class="genre-cb">
+                            <span class="text-sm">Комедия</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="drama" class="genre-cb">
+                            <span class="text-sm">Драма</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="romance" class="genre-cb">
+                            <span class="text-sm">Романтика</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="fantasy" class="genre-cb">
+                            <span class="text-sm">Фэнтези</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="horror" class="genre-cb">
+                            <span class="text-sm">Қорқынышты</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="thriller" class="genre-cb">
+                            <span class="text-sm">Триллер</span>
+                        </label>
+                        <label class="genre-checkbox flex items-center gap-2 bg-slate-800 p-3 rounded-lg cursor-pointer hover:bg-slate-700">
+                            <input type="checkbox" value="scifi" class="genre-cb">
+                            <span class="text-sm">Ғылыми фантастика</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm mb-2 opacity-70">Сипаттама (қазақша)</label>
+                    <textarea id="description-kz" class="w-full bg-slate-800 p-3 rounded-xl outline-none border border-slate-700 focus:border-orange-500 h-24" placeholder="Контент туралы қысқаша..."></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm mb-2 opacity-70">Бір видео URL (егер бір ғана видео болса)</label>
+                    <input type="text" id="single-video-url" class="w-full bg-slate-800 p-3 rounded-xl outline-none border border-slate-700 focus:border-orange-500" placeholder="Опциялық: https://drive.google.com/... немесе https://youtube.com/...">
+                    <p class="text-xs opacity-50 mt-1">💡 Google Drive үшін: Share → Anyone with link → Copy link</p>
+                </div>
+
+                <div class="border-t border-slate-700 pt-4 mt-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-sm opacity-70">Бөлімдер (серии)</label>
+                        <button onclick="addEpisodeField()" class="bg-blue-600 px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                            <i class="fas fa-plus mr-2"></i>Бөлім қосу
+                        </button>
+                    </div>
+                    <div id="episodes-container" class="space-y-2">
+                        <!-- Эпизоды будут добавляться сюда -->
+                    </div>
+                </div>
+
+                <div class="flex gap-4 mt-6">
+                    <button onclick="updateContent()" class="flex-1 bg-gradient-to-r from-orange-600 to-red-600 py-4 rounded-xl font-bold uppercase hover:shadow-xl transition">
+                        <i class="fas fa-save mr-2"></i>Өзгерістерді сақтау
+                    </button>
+                    <button onclick="location.href='admin.html'" class="bg-slate-700 px-6 py-4 rounded-xl font-bold uppercase hover:bg-slate-600 transition">
+                        <i class="fas fa-times mr-2"></i>Болдырмау
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3Tf0kqjLPinrVrcxzB_0Niy3RIL9FJ5Q",
+            authDomain: "kushti-anime.firebaseapp.com",
+            projectId: "kushti-anime",
+            storageBucket: "kushti-anime.firebasestorage.app",
+            messagingSenderId: "539636802828",
+            appId: "1:539636802828:web:9d6d7877d88ac452d61529",
+            measurementId: "G-7ZTFL5TVCS"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let episodeCount = 0;
+        let contentId = null;
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Получаем ID из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        contentId = urlParams.get('id');
+
+        if (!contentId) {
+            showToast('Контент табылмады!', 'error');
+            setTimeout(() => location.href = 'admin.html', 2000);
+        }
+
+        window.addEpisodeField = () => {
+            episodeCount++;
+            const container = document.getElementById('episodes-container');
+            const episodeDiv = document.createElement('div');
+            episodeDiv.className = 'flex gap-2 items-center bg-slate-800 p-3 rounded-xl';
+            episodeDiv.innerHTML = `
+                <span class="text-orange-500 font-bold w-20">Бөлім ${episodeCount}</span>
+                <input type="text" class="episode-url flex-1 bg-slate-700 p-2 rounded-lg outline-none border border-slate-600 focus:border-orange-500 text-sm" placeholder="Video URL (Google Drive, YouTube...)">
+                <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-400">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(episodeDiv);
+        };
+
+        async function loadContent() {
+            try {
+                const docRef = doc(db, "content", contentId);
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) {
+                    showToast('Контент табылмады!', 'error');
+                    setTimeout(() => location.href = 'admin.html', 2000);
+                    return;
+                }
+
+                const data = docSnap.data();
+
+                // Заполняем форму
+                document.getElementById('title-kz').value = data.title_kz || '';
+                document.getElementById('poster-url').value = data.poster_url || '';
+                document.getElementById('description-kz').value = data.description_kz || '';
+                document.getElementById('single-video-url').value = data.video_url || '';
+                document.getElementById('category-select').value = data.category || 'anime';
+
+                // Устанавливаем жанры
+                if (data.genres && Array.isArray(data.genres)) {
+                    data.genres.forEach(genre => {
+                        const checkbox = document.querySelector(`.genre-cb[value="${genre}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                }
+
+                // Загружаем эпизоды
+                if (data.episodes && Array.isArray(data.episodes)) {
+                    const container = document.getElementById('episodes-container');
+                    container.innerHTML = '';
+                    data.episodes.forEach((ep, index) => {
+                        episodeCount = index + 1;
+                        const episodeDiv = document.createElement('div');
+                        episodeDiv.className = 'flex gap-2 items-center bg-slate-800 p-3 rounded-xl';
+                        episodeDiv.innerHTML = `
+                            <span class="text-orange-500 font-bold w-20">Бөлім ${ep.episode}</span>
+                            <input type="text" class="episode-url flex-1 bg-slate-700 p-2 rounded-lg outline-none border border-slate-600 focus:border-orange-500 text-sm" placeholder="Video URL" value="${ep.video_url || ''}">
+                            <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-400">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                        container.appendChild(episodeDiv);
+                    });
+                }
+
+                document.getElementById('edit-panel').classList.remove('hidden');
+            } catch(e) {
+                console.error('Load error:', e);
+                showToast('Жүктеу қатесі!', 'error');
+            }
+        }
+
+        window.updateContent = async () => {
+            const titleKz = document.getElementById('title-kz').value.trim();
+            const posterUrl = document.getElementById('poster-url').value.trim();
+            const descriptionKz = document.getElementById('description-kz').value.trim();
+            const singleVideoUrl = document.getElementById('single-video-url').value.trim();
+            const category = document.getElementById('category-select').value;
+
+            if (!titleKz || !posterUrl || !descriptionKz) {
+                showToast('Барлық өрістерді толтырыңыз!', 'error');
+                return;
+            }
+
+            // Собираем жанры
+            const genres = [];
+            document.querySelectorAll('.genre-cb:checked').forEach(cb => {
+                genres.push(cb.value);
+            });
+
+            if (genres.length === 0) {
+                showToast('Кем дегенде бір жанр таңдаңыз!', 'error');
+                return;
+            }
+
+            // Собираем эпизоды
+            const episodeInputs = document.querySelectorAll('.episode-url');
+            const episodes = [];
+            episodeInputs.forEach((input, index) => {
+                const url = input.value.trim();
+                if (url) {
+                    episodes.push({
+                        episode: index + 1,
+                        video_url: url
+                    });
+                }
+            });
+
+            try {
+                const contentData = {
+                    title_kz: titleKz,
+                    poster_url: posterUrl,
+                    description_kz: descriptionKz,
+                    category: category,
+                    genres: genres,
+                    updatedAt: Date.now()
+                };
+
+                // Добавляем single video если есть
+                if (singleVideoUrl) {
+                    contentData.video_url = singleVideoUrl;
+                }
+
+                // Добавляем эпизоды если есть
+                if (episodes.length > 0) {
+                    contentData.episodes = episodes;
+                }
+
+                await updateDoc(doc(db, "content", contentId), contentData);
+                
+                showToast('Контент жаңартылды!', 'success');
+                setTimeout(() => location.href = 'admin.html', 1500);
+            } catch(e) {
+                console.error('Update error:', e);
+                showToast('Жаңарту қатесі!', 'error');
+            }
+        };
+
+        window.signOut = async () => {
+            if (confirm('Шығуға сенімдісіз бе?')) {
+                await fbSignOut(auth);
+                location.href = 'index.html';
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (!userDoc.exists()) {
+                    document.getElementById('access-denied').classList.remove('hidden');
+                    return;
+                }
+
+                const userData = userDoc.data();
+                const role = userData.role || 'user';
+
+                if (role !== 'admin' && role !== 'moderator') {
+                    document.getElementById('access-denied').classList.remove('hidden');
+                    return;
+                }
+
+                loadContent();
+            } catch(e) {
+                console.error('Auth error:', e);
+                document.getElementById('access-denied').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
